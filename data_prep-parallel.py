@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[1]:
+# In[ ]:
 
 
 # You may need to remove the '#' from the following commands to install the required dependencies
@@ -11,7 +11,21 @@
 #! pip install install openpyxl
 
 
-# In[2]:
+# In[ ]:
+
+
+min_repetitions=2
+
+x_input = 'data/ProCan-DepMapSanger_protein_matrix_6692_averaged.xlsx'
+y_input = 'data/DrugResponse_PANCANCER_GDSC1_GDSC2_20200602.csv'
+
+dir_trees_tmp = "tmp/tmp" # temportal directory where each of the separate trees are going to be saved
+final_results_dir ="tmp/" # directory where the final results are going to be saved
+path_to_R = 'Rscript' # Path to run R
+path_to_ranger_script = 'ranger_run-parallel.R' # Path to the ranger script
+
+
+# In[ ]:
 
 
 # Importing libraries
@@ -24,13 +38,7 @@ import statsmodels.formula.api as smf
 from itertools import combinations
 
 
-# In[3]:
-
-
-min_repetitions=2
-
-
-# In[4]:
+# In[ ]:
 
 
 # Defining the number of splits in the data
@@ -39,31 +47,31 @@ try:
     n_splits = int(sys.argv[2])
 except:
     split_nr = 1
-    n_splits = 10
+    n_splits = 2
     print('Did you forget to add the split number and the number of splits?')
     #exit()
 
 
-# In[5]:
+# In[ ]:
 
 
 #One row per cell line
 #DIR
-x = pd.read_excel('data/ProCan-DepMapSanger_protein_matrix_6692_averaged.xlsx', engine='openpyxl').fillna(0).drop(columns=['Project_Identifier'])
+x = pd.read_excel(x_input, engine='openpyxl').drop(columns=['Project_Identifier'])
 c = [a.replace(';','.') for a in x.columns]
 x.columns = c
 x.columns
 
 
-# In[6]:
+# In[ ]:
 
 
 #DIR
-y = pd.read_csv('data/DrugResponse_PANCANCER_GDSC1_GDSC2_20200602.csv')[['drug_id','cell_line_name','ln_IC50']]
+y = pd.read_csv(y_input)[['drug_id','cell_line_name','ln_IC50']]
 y.columns
 
 
-# In[7]:
+# In[ ]:
 
 
 # This cell is the function to go from the table to a JSON file (variantSpark format and structure)
@@ -111,7 +119,7 @@ def from_table_to_json(m):
 #from_table_to_json(m)
 
 
-# In[8]:
+# In[ ]:
 
 
 # Algorithm to get the interacting nodes (no testing done yet)
@@ -140,72 +148,7 @@ def get_interactions(tree, current_list, interactions):
     
 
 
-# In[9]:
-
-
-# Testing all the interactions
-
-def test_interactions(df, data):
-    """
-    I use GLM because:
-    The main difference between the two approaches is that the general linear model strictly assumes that
-    the residuals will follow a conditionally normal distribution, while the GLM loosens this assumption 
-    and allows for a variety of other distributions from the exponential family for the residuals.
-    """
-    final_results = []
-    counts = 0
-
-    for v in df[(df.repetitions>=2) & (df.order ==2)].variants.tolist():
-        
-        #preparing the input
-        sp=v.split('+')
-        xy = data[sp+['ln_IC50']].fillna(-1)
-        sp=v.replace('_','').split('+')
-        xy.columns = [''.join([chr(int(y)+97) if y.isnumeric() else y for y in x.replace('_','').replace('.','')]) for x in xy.columns]
-        formula = xy.columns[-1]+' ~ '
-        for i in range(1,len(xy.columns)):
-            formula = formula + ' + '.join(['*'.join(o) for o in list(combinations(xy.columns[:-1],i))])
-            formula = formula + ' + '
-        formula = formula.rstrip(' + ')
-
-        # Standard fitting
-        ols = smf.ols(formula,data=xy)
-        ols.raise_on_perfect_prediction = False #preventing the perfect separation error
-        results = ols.fit(disp=False, maxiter=1000) #mehtod prevents singular matrix
-        results = results.summary()
-        converged = results.tables[0].data[5][1].strip()
-        pseudo_r2 = results.tables[0].data[3][3].strip()
-        results = results.tables[1].data
-        results = pd.DataFrame(results[1:], columns=['coef_id', 'coef', 'std err', 'z', 'P>|z|', '[0.025', '0.975]'])
-        results['standard_fitting'] = True
-
-        #If nan means no convergence bc singular matrix
-        #adding regularization
-        if 'nan' == pd.DataFrame(results)['z'].iloc[2].strip():
-            try:
-                results = ols.fit_regularized(method='l1', disp=False, maxiter=1000, alpha=0.3) #mehtod prevents singular matrix
-                results = results.summary()
-                converged = results.tables[0].data[5][1].strip()
-                pseudo_r2 = results.tables[0].data[3][3].strip()
-                results = results.tables[1].data
-                results = pd.DataFrame(results[1:], columns=['coef_id', 'coef', 'std err', 'z', 'P>|z|', '[0.025', '0.975]'])
-                results['standard_fitting'] = False        
-            except:
-                #crashed the regularized
-                counts +=1
-
-        results['converged'] = converged
-        results['pseudo_r2'] = pseudo_r2
-        results['snps'] = v
-        results['order'] = len(sp)
-        final_results.append(results)
-
-    final_results = pd.concat(final_results)
-    #print(counts)
-    return final_results
-
-
-# In[10]:
+# In[ ]:
 
 
 # Testing all the interactions
@@ -242,12 +185,13 @@ def test_interactions_high(df, data, max_order=4):
     counts = 0
 
     for m_or in range(2,max_order+1):
-        print('current order',m_or)
+        #print('current order',m_or)
         
         for v in df[(df.repetitions>=2) & (df.order==m_or)].variants.tolist():
             #preparing the input
             sp=v.split('+')
-            xy = data[sp+['ln_IC50']].fillna(-1)
+            xy = data[sp+['ln_IC50']].dropna()#.fillna(-1)
+            if len(xy) <2: continue
             sp=v.replace('_','').split('+')
             xy.columns = [''.join([chr(int(y)+97) if y.isnumeric() else y for y in x.replace('_','').replace('.','')]) for x in xy.columns]
             formula = xy.columns[-1]+' ~ '
@@ -266,7 +210,7 @@ def test_interactions_high(df, data, max_order=4):
                 subset = final_results[final_results.coef_id.apply(lambda a: a in all_interactions)].reset_index(drop=True)
                 final_results = [final_results]
                 if len(subset)>0:
-                    max_idx = subset['coef'].astype(float).idxmax()
+                    max_idx = subset['coef'].astype(float).abs().idxmax()
                     coef_id = subset.loc[max_idx].coef_id
                     formula = formula +' + '+coef_id.replace(':','*')
                 else:
@@ -311,7 +255,7 @@ def test_interactions_high(df, data, max_order=4):
     return final_results
 
 
-# In[11]:
+# In[ ]:
 
 
 def undo(string):
@@ -323,7 +267,7 @@ def undo(string):
 #undo('PacfbbCRYABHUMAN')
 
 
-# In[12]:
+# In[ ]:
 
 
 #TODO: By compound
@@ -337,15 +281,15 @@ def undo(string):
 
 #Making a temp file to run all R stuff
 #DIR
-os.system(f"mkdir -p tmp/tmp{split_nr}")
+os.system("mkdir -p "+dir_trees_tmp+f"{split_nr}")
 
 
 column_to_group = 'drug_id'
 drugs_list = y[column_to_group].sort_values().unique()
-drugs_list = [drugs_list[i] for i in range(len(drugs_list)) if i%n_splits==split_nr]
+drugs_list = [drugs_list[i] for i in range(len(drugs_list)) if i%n_splits==split_nr-1]
 i = -1
 all_drug_results = []
-for elm in drugs_list[:3]:
+for elm in drugs_list:
     i+=1
     
     if i%10==0 or i<10: print(i,'out of',len(drugs_list), 'drugs in split nr', split_nr)
@@ -356,20 +300,20 @@ for elm in drugs_list[:3]:
     # saving csv for R df
     # file name is generic but we could personalize it
     #DIR
-    xy.drop(columns=['Cell_Line', 'cell_line_name','drug_id']).rename(columns={'ln_IC50':'label'}).to_csv(f"tmp/tmp{split_nr}/data.csv", index=False)
+    xy.drop(columns=['Cell_Line', 'cell_line_name','drug_id']).fillna(0).rename(columns={'ln_IC50':'label'}).to_csv(dir_trees_tmp+f"{split_nr}/data.csv", index=False)
 
     #Run the R script to generate the outputs
-    os.system(f"Rscript ranger_run.R {split_nr}")
+    os.system(f"{path_to_R} {path_to_ranger_script} {split_nr}")
     
     #load the R outputs (the trees, one file each), and convert it to VS look-alike and get interactions
     interactions = {}
     #DIR
-    trees = os.listdir(f"tmp/tmp{split_nr}/")
+    trees = os.listdir(dir_trees_tmp+f"{split_nr}")
     #files = [x for x in files if 'tree' in x]
     for tree in trees:
         if 'tree' not in tree: continue #if it is not a tree file ignore
         #DIR
-        tree_json = from_table_to_json(pd.read_csv(f"tmp/tmp{split_nr}/"+tree))        
+        tree_json = from_table_to_json(pd.read_csv(os.path.join(dir_trees_tmp+str(split_nr),tree)))        
         get_interactions(tree_json,[],interactions) #the interactions are found in "interactions"
         
     # Creating a df out of the interactions
@@ -380,17 +324,29 @@ for elm in drugs_list[:3]:
     tested_interactions = test_interactions_high(df, xy) #here you define which order of interactions you want to compute
     tested_interactions['drug'] = elm
     all_drug_results.append(tested_interactions)
+    #break
     
 
     
 
 final_results = pd.concat(all_drug_results)
 #DIR
-final_results.to_csv(f"tmp/final_results{split_nr}.tsv", index=False, sep='\t')
+final_results.to_csv(final_results_dir+f"final_results{split_nr}.tsv", index=False, sep='\t')
 
 
-# In[13]:
+# In[ ]:
 
 
-print('Done:',split_nr)
+print('Split ',split_nr, 'out of ',n_splits,' is DONE')
+
+
+# In[ ]:
+
+
+fr = [x for x in os.listdir(final_results_dir) if 'final_results' in x and 'final_results_all.tsv' not in x]
+if len(fr) == n_splits:
+    df = pd.concat([pd.read_csv(os.path.join(final_results_dir,final_result)) for final_result in fr])
+    df.to_csv(final_results_dir+"final_results_all.tsv", index=False, sep='\t')
+
+    print('All jobs finished successfully!\n final_results_all.tsv has all the aggregated output')
 
