@@ -351,7 +351,9 @@ for elm in drugs_list:
     xy.drop(columns=['Cell_Line', 'cell_line_name','drug_id']).fillna(0).rename(columns={'ln_IC50':'label'}).to_csv(dir_trees_tmp+f"{split_nr}/data.csv", index=False)
 
     #Run the R script to generate the outputs
-    os.system(f"{path_to_R} {path_to_ranger_script}  -w {working_dir} -c {split_nr} -n {n_trees} -t {mtry} -s {min_node} -d {max_depth}")
+    #os.system(f"{path_to_R} {path_to_ranger_script}  -w {working_dir} -c {split_nr} -n {n_trees} -t {mtry} -s {min_node} -d {max_depth}")
+    print("R output (in case there is an error or something")
+    os.popen(f"{path_to_R} {path_to_ranger_script}  -w {working_dir} -c {split_nr} -n {n_trees} -t {mtry} -s {min_node} -d {max_depth}").read()    
     
     #load the R outputs (the trees, one file each), and convert it to VS look-alike and get interactions
     interactions = {}
