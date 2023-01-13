@@ -14,15 +14,21 @@
 # In[ ]:
 
 
-min_repetitions=2
+## ***** THESE ARE THE DEFAULTS UNLESS THEY ARE CHANGED WHEN YOU RUN THE CODE!!! *****
 
+min_repetitions = 2 #Number of repetitions an interaction appears in the trees
+max_order = 4 
+working_dir = 'tmp_2/' #make sure it is empty
+
+#Ranger parameters
+n_trees = 1000 #Number of trees
+mtry = 100 # Number of variables to possibly split at in each node. Default is the (rounded down) square root of the number variables. 
+max_depth = 0# Maximal tree depth. A value of NULL or 0 (the default) corresponds to unlimited depth, 1 to tree stumps (1 split per tree).
+min_node= 5 # Minimal node size. default ranger: 5
+
+# File inputs
 x_input = 'data/ProCan-DepMapSanger_protein_matrix_6692_averaged.xlsx'
 y_input = 'data/DrugResponse_PANCANCER_GDSC1_GDSC2_20200602.csv'
-
-dir_trees_tmp = "tmp/tmp" # temportal directory where each of the separate trees are going to be saved
-final_results_dir ="tmp/" # directory where the final results are going to be saved
-path_to_R = 'Rscript' # Path to run R
-path_to_ranger_script = 'ranger_run-parallel.R' # Path to the ranger script
 
 
 # In[ ]:
@@ -33,6 +39,7 @@ import pandas as pd
 import numpy as np
 import os
 import sys
+import argparse
 
 import statsmodels.formula.api as smf
 from itertools import combinations
@@ -43,13 +50,54 @@ from itertools import combinations
 
 # Defining the number of splits in the data
 try:
-    split_nr = int(sys.argv[1])
-    n_splits = int(sys.argv[2])
-except:
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--split', default=1)
+    parser.add_argument('--nSplits', default=1) #This makes it not parallel
+    parser.add_argument('--minRep', default=min_repetitions)
+    parser.add_argument('--maxOrder', default=max_order)
+    parser.add_argument('--nTrees', default=n_trees)
+    parser.add_argument('--mtry', default=mtry)
+    parser.add_argument('--maxDepth', default=max_depth)
+    parser.add_argument('--minNode', default=min_node)
+    parser.add_argument('--workingDir', default=working_dir)
+    
+    
+    parser_args = parser.parse_args()
+    
+    
+    split_nr = int(parser_args.split)
+    n_splits = int(parser_args.nSplits)
+    
+    
+    min_repetitions = int(parser_args.minRep) 
+    max_order = int(parser_args.maxOrder)
+    working_dir = parser_args.workingDir
+
+    #Ranger parameters
+    n_trees = int(parser_args.nTrees)
+    mtry = int(parser_args.mtry)
+    max_depth = int(parser_args.maxDepth)
+    min_node= int(parser_args.minNode)
+
+
+except Exception as e: 
+    print(e)
     split_nr = 1
     n_splits = 2
     print('Did you forget to add the split number and the number of splits?')
     #exit()
+
+    
+
+
+# In[ ]:
+
+
+# Easing things for other systems
+dir_trees_tmp = working_dir+"tmp" # temportal directory where each of the separate trees are going to be saved
+#final_results_dir ="tmp/" # directory where the final results are going to be saved
+path_to_R = 'Rscript' # Path to run R
+path_to_ranger_script = 'ranger_run-parallel.R' # Path to the ranger script
 
 
 # In[ ]:
@@ -174,7 +222,7 @@ def results_fit_to_df(results):
     results['0.975]'] = cint_high
     return results
     
-def test_interactions_high(df, data, max_order=4):
+def test_interactions_high(df, data, max_order=4, repetitions_threshold=2):
     """
     I use GLM because:
     The main difference between the two approaches is that the general linear model strictly assumes that
@@ -303,7 +351,7 @@ for elm in drugs_list:
     xy.drop(columns=['Cell_Line', 'cell_line_name','drug_id']).fillna(0).rename(columns={'ln_IC50':'label'}).to_csv(dir_trees_tmp+f"{split_nr}/data.csv", index=False)
 
     #Run the R script to generate the outputs
-    os.system(f"{path_to_R} {path_to_ranger_script} {split_nr}")
+    os.system(f"{path_to_R} {path_to_ranger_script}  -w {working_dir} -c {split_nr} -n {n_trees} -t {mtry} -s {min_node} -d {max_depth}")
     
     #load the R outputs (the trees, one file each), and convert it to VS look-alike and get interactions
     interactions = {}
@@ -321,7 +369,7 @@ for elm in drugs_list:
     df['order'] = df.variants.apply(lambda x: x.count('+')+1)
     
     
-    tested_interactions = test_interactions_high(df, xy) #here you define which order of interactions you want to compute
+    tested_interactions = test_interactions_high(df, xy, max_order=max_order, repetitions_threshold=min_repetitions) #here you define which order of interactions you want to compute
     tested_interactions['drug'] = elm
     all_drug_results.append(tested_interactions)
     #break
@@ -331,7 +379,7 @@ for elm in drugs_list:
 
 final_results = pd.concat(all_drug_results)
 #DIR
-final_results.to_csv(final_results_dir+f"final_results{split_nr}.tsv", index=False, sep='\t')
+final_results.to_csv(working_dir+f"final_results{split_nr}.tsv", index=False, sep='\t')
 
 
 # In[ ]:
@@ -343,10 +391,11 @@ print('Split ',split_nr, 'out of ',n_splits,' is DONE')
 # In[ ]:
 
 
-fr = [x for x in os.listdir(final_results_dir) if 'final_results' in x and 'final_results_all.tsv' not in x]
+fr = [x for x in os.listdir(working_dir) if 'final_results' in x and 'final_results_all.tsv' not in x]
 if len(fr) == n_splits:
-    df = pd.concat([pd.read_csv(os.path.join(final_results_dir,final_result)) for final_result in fr])
-    df.to_csv(final_results_dir+"final_results_all.tsv", index=False, sep='\t')
+    df = pd.concat([pd.read_csv(os.path.join(working_dir,final_result)) for final_result in fr])
+    #df = df[df.coef_id.apply(lambda x: x.count(':'))==df.snps.apply(lambda x: x.count('+'))] #this keeps only the interactions
+    df.to_csv(working_dir+"final_results_all.tsv", index=False, sep='\t')
 
     print('All jobs finished successfully!\n final_results_all.tsv has all the aggregated output')
 
