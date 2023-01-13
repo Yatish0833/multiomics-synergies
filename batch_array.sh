@@ -1,5 +1,5 @@
 #!/bin/bash
-SBATCH --account=XXXXXXX --ntasks-per-node 1 --cpus-per-task=1 --mem 5gb -t 24:00:00 --array 1-40
+#SBATCH --account=XXXXXXX --ntasks-per-node 1 --cpus-per-task=1 --mem 5gb -t 24:00:00 --array 1-40
 set -e -x
 FWDIR="$(cd "`dirname $0`"/..; pwd)"
 BASEDIR=${BASEDIR:-${FWDIR}}
