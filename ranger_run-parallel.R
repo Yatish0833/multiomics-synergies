@@ -1,4 +1,3 @@
-
 #install.packages('optparse')
 
 #!/usr/bin/env Rscript
@@ -15,7 +14,7 @@ option_list = list(
 
   make_option(c("-t", "--mtry"), dest = "mtry", type = "integer", default = NULL,
               help = "input the number of variables to possibly split at in each node [default= %default]", metavar = "character"),
-  
+
   make_option(c("-s", "--min-node-size"), dest = "minNodeSize", type = "integer", default = NULL,
               help = "min node size [default= %default]", metavar = "numeric"),
 

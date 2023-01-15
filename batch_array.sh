@@ -56,7 +56,7 @@ if [ -n "$mtry" ]; then
         finalScript+=" --mtry $mtry"
 fi
 
-if [ -n "$mazDepth" ]; then
+if [ -n "$maxDepth" ]; then
         finalScript+=" --maxDepth $maxDepth"
 fi
 
