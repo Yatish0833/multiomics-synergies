@@ -11,7 +11,7 @@
 #! pip install install openpyxl
 
 
-# In[22]:
+# In[ ]:
 
 
 ## ***** THESE ARE THE DEFAULTS UNLESS THEY ARE CHANGED WHEN YOU RUN THE CODE!!! *****
@@ -91,7 +91,14 @@ except Exception as e:
     
 
 
-# In[25]:
+# In[ ]:
+
+
+split_nr = 1
+n_splits = 2
+
+
+# In[ ]:
 
 
 # Easing things for other systems
@@ -338,7 +345,9 @@ drugs_list = y[column_to_group].sort_values().unique()
 drugs_list = [drugs_list[i] for i in range(len(drugs_list)) if i%n_splits==split_nr-1]
 i = -1
 all_drug_results = []
+tree_performances = []
 for elm in drugs_list:
+    print(f"{path_to_R} {path_to_ranger_script}  -w {working_dir} -c {split_nr} -n {n_trees} -t {mtry} -s {min_node} -d {max_depth}")
     i+=1
     
     if i%10==0 or i<10: print(i,'out of',len(drugs_list), 'drugs in split nr', split_nr)
@@ -354,7 +363,8 @@ for elm in drugs_list:
     #Run the R script to generate the outputs
     #os.system(f"{path_to_R} {path_to_ranger_script}  -w {working_dir} -c {split_nr} -n {n_trees} -t {mtry} -s {min_node} -d {max_depth}")
     print("R output (in case there is an error or something")
-    os.popen(f"{path_to_R} {path_to_ranger_script}  -w {working_dir} -c {split_nr} -n {n_trees} -t {mtry} -s {min_node} -d {max_depth}").read()    
+    #os.popen(f"{path_to_R} {path_to_ranger_script}  -w {working_dir} -c {split_nr} -n {n_trees} -t {mtry} -s {min_node} -d {max_depth}").read()    
+    print(os.popen(f"{path_to_R} {path_to_ranger_script}  -w {working_dir} -c {split_nr} -n {n_trees} -t {mtry} -s {min_node} -d {max_depth}").read())
     
     #load the R outputs (the trees, one file each), and convert it to VS look-alike and get interactions
     interactions = {}
@@ -371,19 +381,24 @@ for elm in drugs_list:
     df = pd.DataFrame({'variants':interactions.keys(),'repetitions':interactions.values()})
     df['order'] = df.variants.apply(lambda x: x.count('+')+1)
     
+    #get tree performances
+    aux_performances = pd.read_csv(os.path.join(dir_trees_tmp+str(split_nr),"performance.tsv"), sep='\t')
+    aux_performances['drug'] = elm
+    tree_performances.append(aux_performances)
     
     tested_interactions = test_interactions_high(df, xy, max_order=max_order, repetitions_threshold=min_repetitions) #here you define which order of interactions you want to compute
     tested_interactions['drug'] = elm
     all_drug_results.append(tested_interactions)
-    #break
+    break
     
 
     
 
 final_results = pd.concat(all_drug_results)
-#DIR
 final_results.to_csv(working_dir+f"final_results{split_nr}.tsv", index=False, sep='\t')
 
+tree_performances = pd.concat(tree_performances)
+tree_performances.to_csv(working_dir+f"tree_performances{split_nr}.tsv", index=False, sep='\t')
 
 # deliting temp folder from raneger
 shutil.rmtree(dir_trees_tmp+f"{split_nr}")
@@ -401,13 +416,24 @@ print('Split ',split_nr, 'out of ',n_splits,' is DONE')
 
 fr = [x for x in os.listdir(working_dir) if 'final_results' in x and 'final_results_all.tsv' not in x]
 if len(fr) == n_splits:
-    df = pd.concat([pd.read_csv(os.path.join(working_dir,final_result)) for final_result in fr])
+    df = pd.concat([pd.read_csv(os.path.join(working_dir,final_result), sep='\t') for final_result in fr])
     #df = df[df.coef_id.apply(lambda x: x.count(':'))==df.snps.apply(lambda x: x.count('+'))] #this keeps only the interactions
     df.to_csv(working_dir+"final_results_all.tsv", index=False, sep='\t')
     
     #Removing temp final results
     for final_result in fr:
-        os.remove(os.path.join(working_dir,final_result))
+        #os.remove(os.path.join(working_dir,final_result))
+        pass
+        
+    # now the same for performances    
+    pr = [x for x in os.listdir(working_dir) if 'tree_performances' in x and 'tree_performances_all.tsv' not in x]
+    df = pd.concat([pd.read_csv(os.path.join(working_dir,tree_performance), sep='\t') for tree_performance in pr])
+    df.to_csv(working_dir+"tree_performances_all.tsv", index=False, sep='\t')
+    
+    #Removing temp final results
+    for final_result in pr:
+        #os.remove(os.path.join(working_dir,final_result))
+        pass
 
     print('All jobs finished successfully!\n final_results_all.tsv has all the aggregated output')
 
