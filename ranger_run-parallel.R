@@ -1,6 +1,6 @@
-#install.packages('optparse')
-
 #!/usr/bin/env Rscript
+
+#install.packages('optparse')
 library(optparse)
 library(rpart)
 library(ggplot2)
@@ -31,12 +31,15 @@ option_list = list(
 opt_parser = OptionParser(option_list = option_list)
 args = parse_args(opt_parser)
 
-#nTrees <- 1000
-#DIR
-#setwd("/Users/reg032/workspace/procan")
+#args$nTrees = 1000
+#args$mtry = 100
+#args$minNodeSize = 5
+#args$maxDepth = 0
+#args$split = 1
+#args$workDir = "/Users/IDENT/workspace/procan/tmp/"
+
 setwd(args$workDir)
 set.seed(13)
-#DIR
 X_df <- read.csv(paste0("tmp",args$split,"/data.csv"))
 
 
@@ -44,13 +47,22 @@ X_df <- read.csv(paste0("tmp",args$split,"/data.csv"))
 ra <-ranger(label ~ ., X_df, num.trees = args$nTrees, mtry=args$mtry, min.node.size=args$minNodeSize, max.depth= args$maxDepth, importance = 'impurity')
 
 #Saving importances
-#DIR
 write.csv(ra$variable.importance, paste0("tmp",args$split,'/importances.csv'),row.names = FALSE)
 
 # Saving the tree info 
 for (i in 1:args$nTrees){
-  #DIR
   write.csv(treeInfo(ra,i),paste0("tmp",args$split,"/tree",i,".csv"), row.names = FALSE)
 }
 
-# print('a')
+
+# MSE = ra$prediction.error
+# OOB = ra$r.squared (R squared OOB by ranger definition)
+ra
+
+
+df <- data.frame (MSE  = c(ra$prediction.error),
+                  OOB = c(ra$r.squared)
+)
+df
+
+write.table(df, file=paste0("tmp",args$split,"/performance.tsv"), quote=FALSE, sep='\t')
