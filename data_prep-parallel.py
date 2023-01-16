@@ -11,14 +11,14 @@
 #! pip install install openpyxl
 
 
-# In[ ]:
+# In[22]:
 
 
 ## ***** THESE ARE THE DEFAULTS UNLESS THEY ARE CHANGED WHEN YOU RUN THE CODE!!! *****
 
 min_repetitions = 2 #Number of repetitions an interaction appears in the trees
 max_order = 4 
-working_dir = 'tmp_2/' #make sure it is empty
+working_dir = 'tmp/' #make sure it is empty
 
 #Ranger parameters
 n_trees = 1000 #Number of trees
@@ -40,6 +40,7 @@ import numpy as np
 import os
 import sys
 import argparse
+import shutil
 
 import statsmodels.formula.api as smf
 from itertools import combinations
@@ -90,7 +91,7 @@ except Exception as e:
     
 
 
-# In[ ]:
+# In[25]:
 
 
 # Easing things for other systems
@@ -384,6 +385,11 @@ final_results = pd.concat(all_drug_results)
 final_results.to_csv(working_dir+f"final_results{split_nr}.tsv", index=False, sep='\t')
 
 
+# deliting temp folder from raneger
+shutil.rmtree(dir_trees_tmp+f"{split_nr}")
+#Option B: os.system("rm -rf _path_to_dir")
+
+
 # In[ ]:
 
 
@@ -398,6 +404,10 @@ if len(fr) == n_splits:
     df = pd.concat([pd.read_csv(os.path.join(working_dir,final_result)) for final_result in fr])
     #df = df[df.coef_id.apply(lambda x: x.count(':'))==df.snps.apply(lambda x: x.count('+'))] #this keeps only the interactions
     df.to_csv(working_dir+"final_results_all.tsv", index=False, sep='\t')
+    
+    #Removing temp final results
+    for final_result in fr:
+        os.remove(os.path.join(working_dir,final_result))
 
     print('All jobs finished successfully!\n final_results_all.tsv has all the aggregated output')
 
