@@ -57,12 +57,12 @@ for (i in 1:args$nTrees){
 
 # MSE = ra$prediction.error
 # OOB = ra$r.squared (R squared OOB by ranger definition)
-ra
+#ra
 
 
 df <- data.frame (MSE  = c(ra$prediction.error),
                   OOB = c(ra$r.squared)
 )
-df
+#df
 
 write.table(df, file=paste0("tmp",args$split,"/performance.tsv"), quote=FALSE, sep='\t')
