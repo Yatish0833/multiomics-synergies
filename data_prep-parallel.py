@@ -94,11 +94,11 @@ except Exception as e:
 # In[ ]:
 
 
-split_nr = 1
-n_splits = 2
+#split_nr = 1
+#n_splits = 2
 
 
-# In[125]:
+# In[ ]:
 
 
 # If this split finalized successfully, it does not re-run
@@ -398,7 +398,7 @@ for elm in drugs_list:
     tested_interactions = test_interactions_high(df, xy, max_order=max_order, repetitions_threshold=min_repetitions) #here you define which order of interactions you want to compute
     tested_interactions['drug'] = elm
     all_drug_results.append(tested_interactions)
-    break
+    #break
     
 
     
