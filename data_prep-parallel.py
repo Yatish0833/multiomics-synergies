@@ -378,14 +378,21 @@ for elm in drugs_list:
     #load the R outputs (the trees, one file each), and convert it to VS look-alike and get interactions
     interactions = {}
     #DIR
-    trees = os.listdir(dir_trees_tmp+f"{split_nr}")
+#    trees = os.listdir(dir_trees_tmp+f"{split_nr}")
     #files = [x for x in files if 'tree' in x]
-    for tree in trees:
-        if 'tree' not in tree: continue #if it is not a tree file ignore
+#    for tree in trees:
+#        if 'tree' not in tree: continue #if it is not a tree file ignore
         #DIR
-        tree_json = from_table_to_json(pd.read_csv(os.path.join(dir_trees_tmp+str(split_nr),tree)))        
-        get_interactions(tree_json,[],interactions) #the interactions are found in "interactions"
+#        tree_json = from_table_to_json(pd.read_csv(os.path.join(dir_trees_tmp+str(split_nr),tree)))        
+#        get_interactions(tree_json,[],interactions) #the interactions are found in "interactions"
         
+    aggregated_trees_df = pd.read_csv(os.path.join(dir_trees_tmp+str(split_nr),'aggregated_trees.csv'))
+    aggregated_trees_list = aggregated_trees_df.tree.unique()
+    for tree_nr in aggregated_trees_list:
+        tree_df = aggregated_trees_df[aggregated_trees_df.tree==tree_nr]
+        tree_json = from_table_to_json(tree_df)        
+        get_interactions(tree_json,[],interactions)
+    
     # Creating a df out of the interactions
     df = pd.DataFrame({'variants':interactions.keys(),'repetitions':interactions.values()})
     df['order'] = df.variants.apply(lambda x: x.count('+')+1)

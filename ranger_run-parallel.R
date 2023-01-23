@@ -36,7 +36,7 @@ args = parse_args(opt_parser)
 #args$minNodeSize = 5
 #args$maxDepth = 0
 #args$split = 1
-#args$workDir = "/Users/IDENT/workspace/procan/tmp/"
+#args$workDir = "/Users/XXXX/workspace/procan/tmp/"
 
 setwd(args$workDir)
 set.seed(13)
@@ -50,10 +50,15 @@ ra <-ranger(label ~ ., X_df, num.trees = args$nTrees, mtry=args$mtry, min.node.s
 write.csv(ra$variable.importance, paste0("tmp",args$split,'/importances.csv'),row.names = FALSE)
 
 # Saving the tree info 
-for (i in 1:args$nTrees){
-  write.csv(treeInfo(ra,i),paste0("tmp",args$split,"/tree",i,".csv"), row.names = FALSE)
+final_df<-treeInfo(ra,1)
+final_df$tree <- 1
+for (i in 2:args$nTrees){
+  #write.csv(treeInfo(ra,i),paste0("tmp",args$split,"/tree",i,".csv"), row.names = FALSE)
+  tr<-treeInfo(ra,i)
+  tr$tree <- i
+  final_df<-rbind(final_df, tr)
 }
-
+write.csv(final_df,paste0("tmp",args$split,"/aggregated_trees.csv"), row.names = FALSE)
 
 # MSE = ra$prediction.error
 # OOB = ra$r.squared (R squared OOB by ranger definition)
@@ -63,6 +68,7 @@ for (i in 1:args$nTrees){
 df <- data.frame (MSE  = c(ra$prediction.error),
                   OOB = c(ra$r.squared)
 )
-#df
 
 write.table(df, file=paste0("tmp",args$split,"/performance.tsv"), quote=FALSE, sep='\t')
+
+
