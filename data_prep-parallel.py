@@ -239,7 +239,7 @@ def results_fit_to_df(results):
     results['0.975]'] = cint_high
     return results
     
-def test_interactions_high(df, data, max_order=4, repetitions_threshold=2):
+def test_interactions_high(df, data, max_order=4, repetitions_threshold=2, min_cell_lines=20):
     """
     I use GLM because:
     The main difference between the two approaches is that the general linear model strictly assumes that
@@ -256,7 +256,8 @@ def test_interactions_high(df, data, max_order=4, repetitions_threshold=2):
             #preparing the input
             sp=v.split('+')
             xy = data[sp+['ln_IC50']].dropna()#.fillna(-1)
-            if len(xy) <2: continue
+            if len(xy) <min_cell_lines: continue 
+            if len(xy.columns) <3: continue
             sp=v.replace('_','').split('+')
             xy.columns = [''.join([chr(int(y)+97) if y.isnumeric() else y for y in x.replace('_','').replace('.','')]) for x in xy.columns]
             formula = xy.columns[-1]+' ~ '
