@@ -239,7 +239,7 @@ def results_fit_to_df(results):
     results['0.975]'] = cint_high
     return results
     
-def test_interactions_high(df, data, max_order=4, repetitions_threshold=2, min_cell_lines=20):
+def test_interactions_high(df, data, max_order=4, repetitions_threshold=2):
     """
     I use GLM because:
     The main difference between the two approaches is that the general linear model strictly assumes that
@@ -256,8 +256,7 @@ def test_interactions_high(df, data, max_order=4, repetitions_threshold=2, min_c
             #preparing the input
             sp=v.split('+')
             xy = data[sp+['ln_IC50']].dropna()#.fillna(-1)
-            if len(xy) <min_cell_lines: continue 
-            if len(xy.columns) <3: continue
+            if len(xy) <2: continue
             sp=v.replace('_','').split('+')
             xy.columns = [''.join([chr(int(y)+97) if y.isnumeric() else y for y in x.replace('_','').replace('.','')]) for x in xy.columns]
             formula = xy.columns[-1]+' ~ '
@@ -401,21 +400,21 @@ for elm in drugs_list:
     #get tree performances
     aux_performances = pd.read_csv(os.path.join(dir_trees_tmp+str(split_nr),"performance.tsv"), sep='\t')
     aux_performances['drug'] = elm
-    tree_performances.append(aux_performances)
+    aux_performances.to_csv(working_dir+f"tree_performances{split_nr}.tsv", index=False, sep='\t')
     
     tested_interactions = test_interactions_high(df, xy, max_order=max_order, repetitions_threshold=min_repetitions) #here you define which order of interactions you want to compute
     tested_interactions['drug'] = elm
-    all_drug_results.append(tested_interactions)
+    tested_interactions.to_csv(working_dir+f"final_results{split_nr}.tsv", index=False, sep='\t')
     #break
     
 
     
 
-final_results = pd.concat(all_drug_results)
-final_results.to_csv(working_dir+f"final_results{split_nr}.tsv", index=False, sep='\t')
+#final_results = pd.concat(all_drug_results)
+#final_results.to_csv(working_dir+f"final_results{split_nr}.tsv", index=False, sep='\t')
 
-tree_performances = pd.concat(tree_performances)
-tree_performances.to_csv(working_dir+f"tree_performances{split_nr}.tsv", index=False, sep='\t')
+#tree_performances = pd.concat(tree_performances)
+#tree_performances.to_csv(working_dir+f"tree_performances{split_nr}.tsv", index=False, sep='\t')
 
 # deliting temp folder from raneger
 shutil.rmtree(dir_trees_tmp+f"{split_nr}")
