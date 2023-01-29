@@ -239,7 +239,7 @@ def results_fit_to_df(results):
     results['0.975]'] = cint_high
     return results
     
-def test_interactions_high(df, data, max_order=4, repetitions_threshold=2):
+def test_interactions_high(df, data, max_order=4, repetitions_threshold=2, min_samples=20):
     """
     I use GLM because:
     The main difference between the two approaches is that the general linear model strictly assumes that
@@ -256,7 +256,8 @@ def test_interactions_high(df, data, max_order=4, repetitions_threshold=2):
             #preparing the input
             sp=v.split('+')
             xy = data[sp+['ln_IC50']].dropna()#.fillna(-1)
-            if len(xy) <2: continue
+            if len(xy.columns) <= m_or: continue #not enough columns
+            if len(xy) <= min_samples: continue #not enough rows
             sp=v.replace('_','').split('+')
             xy.columns = [''.join([chr(int(y)+97) if y.isnumeric() else y for y in x.replace('_','').replace('.','')]) for x in xy.columns]
             formula = xy.columns[-1]+' ~ '
@@ -400,11 +401,11 @@ for elm in drugs_list:
     #get tree performances
     aux_performances = pd.read_csv(os.path.join(dir_trees_tmp+str(split_nr),"performance.tsv"), sep='\t')
     aux_performances['drug'] = elm
-    aux_performances.to_csv(working_dir+f"tree_performances{split_nr}.tsv", index=False, sep='\t')
+    aux_performances.to_csv(working_dir+f"tree_performances{split_nr}.tsv", index=False, sep='\t',mode='a')
     
     tested_interactions = test_interactions_high(df, xy, max_order=max_order, repetitions_threshold=min_repetitions) #here you define which order of interactions you want to compute
     tested_interactions['drug'] = elm
-    tested_interactions.to_csv(working_dir+f"final_results{split_nr}.tsv", index=False, sep='\t')
+    tested_interactions.to_csv(working_dir+f"final_results{split_nr}.tsv", index=False, sep='\t',mode='a')
     #break
     
 
@@ -438,8 +439,8 @@ if len(fr) == n_splits:
     
     #Removing temp final results
     for final_result in fr:
-        #os.remove(os.path.join(working_dir,final_result))
-        pass
+        os.remove(os.path.join(working_dir,final_result))
+        #pass
         
     # now the same for performances    
     pr = [x for x in os.listdir(working_dir) if 'tree_performances' in x and 'tree_performances_all.tsv' not in x]
@@ -448,8 +449,8 @@ if len(fr) == n_splits:
     
     #Removing temp final results
     for final_result in pr:
-        #os.remove(os.path.join(working_dir,final_result))
-        pass
+        os.remove(os.path.join(working_dir,final_result))
+        #pass
 
     print('All jobs finished successfully!\n final_results_all.tsv has all the aggregated output')
 
