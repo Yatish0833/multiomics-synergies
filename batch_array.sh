@@ -12,13 +12,27 @@ BASEDIR=${BASEDIR:-${FWDIR}}
 # START HYPER-PARAMETERS
 # If you comment out a parameter, the default will be used
 
-minRep=2
-maxOrder=4
-nTrees=1000
-mtry=100
-maxDepth=0
-minNode=5
-workingDir="tmp/"
+if [ "$#" -eq  "0" ]
+  then
+    echo "No arguments supplied"
+    minRep=2
+    maxOrder=4
+    nTrees=1000
+    mtry=100
+    maxDepth=0
+    minNode=5
+    workingDir="/scratch2/reg032/tst/tmp39_nTrees${nTrees}/"
+else
+    echo "Arguments suppliedd"
+    minRep=$1
+    maxOrder=$2
+    nTrees=$3
+    mtry=$4
+    maxDepth=$5
+    minNode=$6
+#workingDir="/scratch1/projects/HB_TB_Share/roc/procan/grid_search/tmp_nTrees${nTrees}_minRep${minRep}_maxOrder${maxOrder}_mtry${mtry}_maxDepth${maxDepth}_minNode${minNode}/"
+    workingDir="/scratch2/IDENT/random_search/tmp311_nTrees${nTrees}_minRep${minRep}_maxOrder${maxOrder}_mtry${mtry}_maxDepth${maxDepth}_minNode${minNode}/"
+fi
 
 # END HYPER-PARAMETERS
 
@@ -35,6 +49,7 @@ mkdir -p "${workingDir}"
 
 #module load R/4.1.3
 #module load python/3.9.4
+#module load python/3.11.0
 
 
 #Setting the script for the parameters in the bash
