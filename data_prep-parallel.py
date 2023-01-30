@@ -382,15 +382,7 @@ for elm in drugs_list:
     
     #load the R outputs (the trees, one file each), and convert it to VS look-alike and get interactions
     interactions = {}
-    #DIR
-#    trees = os.listdir(dir_trees_tmp+f"{split_nr}")
-    #files = [x for x in files if 'tree' in x]
-#    for tree in trees:
-#        if 'tree' not in tree: continue #if it is not a tree file ignore
-        #DIR
-#        tree_json = from_table_to_json(pd.read_csv(os.path.join(dir_trees_tmp+str(split_nr),tree)))        
-#        get_interactions(tree_json,[],interactions) #the interactions are found in "interactions"
-        
+  
     aggregated_trees_df = pd.read_csv(os.path.join(dir_trees_tmp+str(split_nr),'aggregated_trees.csv'))
     aggregated_trees_list = aggregated_trees_df.tree.unique()
     for tree_nr in aggregated_trees_list:
@@ -413,13 +405,6 @@ for elm in drugs_list:
     #break
     
 
-    
-
-#final_results = pd.concat(all_drug_results)
-#final_results.to_csv(working_dir+f"final_results{split_nr}.tsv", index=False, sep='\t')
-
-#tree_performances = pd.concat(tree_performances)
-#tree_performances.to_csv(working_dir+f"tree_performances{split_nr}.tsv", index=False, sep='\t')
 
 # deliting temp folder from raneger
 shutil.rmtree(dir_trees_tmp+f"{split_nr}")
@@ -435,29 +420,26 @@ print('Split ',split_nr, 'out of ',n_splits,' is DONE')
 # In[ ]:
 
 
-fr = [x for x in os.listdir(working_dir) if 'final_results' in x and 'final_results_all.tsv' not in x]
+#All jobs finished
+for i in range(1,n_splits+1):
+    if os.path.exists('data'): exit() #Not all jobs finished
+    
+
+fr = [x for x in os.listdir(working_dir) if 'final_results' in x and 'final_results_all.tsv' not in x] #all jobs created the file
 if len(fr) == n_splits:
-    #df = pd.concat([pd.read_csv(os.path.join(working_dir,final_result), sep='\t') for final_result in fr])
-    #df = df[df.coef_id.apply(lambda x: x.count(':'))==df.snps.apply(lambda x: x.count('+'))] #this keeps only the interactions
-    #df.to_csv(working_dir+"final_results_all.tsv", index=False, sep='\t')
-    
-    #appending everything together
-    _ = [pd.read_csv(os.path.join(working_dir,final_result), sep='\t').to_csv(working_dir+f"final_results_all.tsv", index=False, sep='\t',mode='a') for final_result in fr]
-    
-    #Removing temp final results
+
+    #appending everything together and Removing temp final results
     for final_result in fr:
+        pd.read_csv(os.path.join(working_dir,final_result), sep='\t').to_csv(working_dir+f"final_results_all.tsv", index=False, sep='\t',mode='a')
         os.remove(os.path.join(working_dir,final_result))
         #pass
         
     # now the same for performances    
+    #Adding tree performances and Removing temp final results
     pr = [x for x in os.listdir(working_dir) if 'tree_performances' in x and 'tree_performances_all.tsv' not in x]
-    #df = pd.concat([pd.read_csv(os.path.join(working_dir,tree_performance), sep='\t') for tree_performance in pr])
-    #df.to_csv(working_dir+"tree_performances_all.tsv", index=False, sep='\t')
-    _ = [pd.read_csv(os.path.join(working_dir,tree_performance), sep='\t').to_csv(working_dir+f"tree_performances_all.tsv", index=False, sep='\t',mode='a') for tree_performance in pr]
-    
-    #Removing temp final results
-    for final_result in pr:
-        os.remove(os.path.join(working_dir,final_result))
+    for tree_performance in pr:
+        pd.read_csv(os.path.join(working_dir,tree_performance), sep='\t').to_csv(working_dir+f"tree_performances_all.tsv", index=False, sep='\t',mode='a')
+        os.remove(os.path.join(working_dir,tree_performance))
         #pass
 
     print('All jobs finished successfully!\n final_results_all.tsv has all the aggregated output')
