@@ -21,7 +21,7 @@ if [ "$#" -eq  "0" ]
     mtry=100
     maxDepth=0
     minNode=5
-    workingDir="/scratch2/reg032/tst/tmp39_nTrees${nTrees}/"
+    workingDir="/scratch2/IDENT/tst/tmp39_nTrees${nTrees}/"
 else
     echo "Arguments suppliedd"
     minRep=$1
@@ -49,7 +49,7 @@ mkdir -p "${workingDir}"
 
 #module load R/4.1.3
 #module load python/3.9.4
-#module load python/3.11.0
+module load python/3.11.0
 
 
 #Setting the script for the parameters in the bash
