@@ -105,6 +105,10 @@ except Exception as e:
 if os.path.exists(working_dir+f"final_results{split_nr}.tsv") and os.path.exists(working_dir+f"tree_performances{split_nr}.tsv"):
     print('Job previously run successfully!\nExiting')
     exit()
+    
+if os.path.exists(working_dir+f"final_results.tsv") and os.path.exists(working_dir+f"tree_performances.tsv"):
+    print('Job previously run successfully!\nExiting')
+    exit()
 
 
 # In[ ]:
@@ -433,9 +437,12 @@ print('Split ',split_nr, 'out of ',n_splits,' is DONE')
 
 fr = [x for x in os.listdir(working_dir) if 'final_results' in x and 'final_results_all.tsv' not in x]
 if len(fr) == n_splits:
-    df = pd.concat([pd.read_csv(os.path.join(working_dir,final_result), sep='\t') for final_result in fr])
+    #df = pd.concat([pd.read_csv(os.path.join(working_dir,final_result), sep='\t') for final_result in fr])
     #df = df[df.coef_id.apply(lambda x: x.count(':'))==df.snps.apply(lambda x: x.count('+'))] #this keeps only the interactions
-    df.to_csv(working_dir+"final_results_all.tsv", index=False, sep='\t')
+    #df.to_csv(working_dir+"final_results_all.tsv", index=False, sep='\t')
+    
+    #appending everything together
+    _ = [pd.read_csv(os.path.join(working_dir,final_result), sep='\t').to_csv(working_dir+f"final_results_all.tsv", index=False, sep='\t',mode='a') for final_result in fr]
     
     #Removing temp final results
     for final_result in fr:
@@ -444,8 +451,9 @@ if len(fr) == n_splits:
         
     # now the same for performances    
     pr = [x for x in os.listdir(working_dir) if 'tree_performances' in x and 'tree_performances_all.tsv' not in x]
-    df = pd.concat([pd.read_csv(os.path.join(working_dir,tree_performance), sep='\t') for tree_performance in pr])
-    df.to_csv(working_dir+"tree_performances_all.tsv", index=False, sep='\t')
+    #df = pd.concat([pd.read_csv(os.path.join(working_dir,tree_performance), sep='\t') for tree_performance in pr])
+    #df.to_csv(working_dir+"tree_performances_all.tsv", index=False, sep='\t')
+    _ = [pd.read_csv(os.path.join(working_dir,tree_performance), sep='\t').to_csv(working_dir+f"tree_performances_all.tsv", index=False, sep='\t',mode='a') for tree_performance in pr]
     
     #Removing temp final results
     for final_result in pr:
