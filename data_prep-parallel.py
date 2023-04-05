@@ -97,13 +97,6 @@ except Exception as e:
 # In[ ]:
 
 
-split_nr = 1
-n_splits = 2
-
-
-# In[ ]:
-
-
 # If this split finalized successfully, it does not re-run
 if os.path.exists(working_dir+f"final_results{split_nr}.tsv") and os.path.exists(working_dir+f"tree_performances{split_nr}.tsv"):
     print('Job previously run successfully!\nExiting')
