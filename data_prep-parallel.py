@@ -16,9 +16,12 @@
 
 ## ***** THESE ARE THE DEFAULTS UNLESS THEY ARE CHANGED WHEN YOU RUN THE CODE!!! *****
 
+#Best overall parameters: min_repetitions = 2, n_trees = 6000, mtry = 500, max_depth = 10, min_node= 15
+
 min_repetitions = 2 #Number of repetitions an interaction appears in the trees
 max_order = 4 
 working_dir = 'tmp/' #make sure it is empty
+drop_nans = False
 
 #Ranger parameters
 n_trees = 1000 #Number of trees
@@ -94,8 +97,8 @@ except Exception as e:
 # In[ ]:
 
 
-#split_nr = 1
-#n_splits = 2
+split_nr = 1
+n_splits = 2
 
 
 # In[ ]:
@@ -220,6 +223,18 @@ def get_interactions(tree, current_list, interactions):
 # In[ ]:
 
 
+def undo(string):
+    
+    string = ''.join([ x if ord(x)<90 else str(ord(x)-97) for x in string ])
+    string = string[:6]+'.'+string[6:].replace('HUMAN', '_HUMAN') #not sure these 6
+    return string
+    
+#undo('PacfbbCRYABHUMAN')
+
+
+# In[ ]:
+
+
 # Testing all the interactions
 
 def results_fit_to_df(results):
@@ -230,7 +245,13 @@ def results_fit_to_df(results):
     cint_low = results.conf_int()[0].tolist()
     cint_high = results.conf_int()[1].tolist()
 
-    results = results.summary()
+    try:
+        results = results.summary()
+    except:
+        #ValueError: resids must contain at least 2 elements
+        r = pd.DataFrame([1,2,3]) #dirty...
+        r['z']='nan'
+        return r
     converged = results.tables[0].data[5][1].strip()
     results = results.tables[1].data
     results = pd.DataFrame(results[1:], columns=['coef_id', 'coef', 'std err', 'z', 'P>|z|', '[0.025', '0.975]'])
@@ -259,7 +280,9 @@ def test_interactions_high(df, data, max_order=4, repetitions_threshold=2, min_s
         for v in df[(df.repetitions>=2) & (df.order==m_or)].variants.tolist():
             #preparing the input
             sp=v.split('+')
-            xy = data[sp+['ln_IC50']].dropna()#.fillna(-1)
+            xy = data[sp+['ln_IC50']]
+            if drop_nans:
+                xy = xy.dropna()
             if len(xy.columns) <= m_or: continue #not enough columns
             if len(xy) <= min_samples: continue #not enough rows
             sp=v.replace('_','').split('+')
@@ -300,6 +323,7 @@ def test_interactions_high(df, data, max_order=4, repetitions_threshold=2, min_s
                 continue
             ols.raise_on_perfect_prediction = False #preventing the perfect separation error
             results = ols.fit(disp=False, maxiter=1000) #mehtod prevents singular matrix
+#            print(formula)
 #            return results
             results = results_fit_to_df(results)
             results['standard_fitting'] = True
@@ -323,18 +347,6 @@ def test_interactions_high(df, data, max_order=4, repetitions_threshold=2, min_s
 
     final_results = pd.concat(final_results)
     return final_results
-
-
-# In[ ]:
-
-
-def undo(string):
-    
-    string = ''.join([ x if ord(x)<90 else str(ord(x)-97) for x in string ])
-    string = string[:6]+'.'+string[6:].replace('HUMAN', '_HUMAN') #not sure these 6
-    return string
-    
-#undo('PacfbbCRYABHUMAN')
 
 
 # In[ ]:
@@ -376,7 +388,7 @@ for elm in drugs_list:
 
     #Run the R script to generate the outputs
     #os.system(f"{path_to_R} {path_to_ranger_script}  -w {working_dir} -c {split_nr} -n {n_trees} -t {mtry} -s {min_node} -d {max_depth}")
-    print("R output (in case there is an error or something")
+    print("R output (in case there is an error or something)")
     #os.popen(f"{path_to_R} {path_to_ranger_script}  -w {working_dir} -c {split_nr} -n {n_trees} -t {mtry} -s {min_node} -d {max_depth}").read()    
     print(os.popen(f"{path_to_R} {path_to_ranger_script}  -w {working_dir} -c {split_nr} -n {n_trees} -t {mtry} -s {min_node} -d {max_depth}").read())
     
@@ -397,12 +409,18 @@ for elm in drugs_list:
     #get tree performances
     aux_performances = pd.read_csv(os.path.join(dir_trees_tmp+str(split_nr),"performance.tsv"), sep='\t')
     aux_performances['drug'] = elm
-    aux_performances.to_csv(working_dir+f"tree_performances{split_nr}.tsv", index=False, sep='\t',mode='a')
+    if os.path.isfile(working_dir+f"tree_performances{split_nr}.tsv"):
+        aux_performances.to_csv(working_dir+f"tree_performances{split_nr}.tsv", index=False, sep='\t',mode='a', header=False)
+    else:
+        aux_performances.to_csv(working_dir+f"tree_performances{split_nr}.tsv", index=False, sep='\t',mode='a')
     
     tested_interactions = test_interactions_high(df, xy, max_order=max_order, repetitions_threshold=min_repetitions) #here you define which order of interactions you want to compute
     tested_interactions['drug'] = elm
-    tested_interactions.to_csv(working_dir+f"final_results{split_nr}.tsv", index=False, sep='\t',mode='a')
-    #break
+    if os.path.isfile(working_dir+f"final_results{split_nr}.tsv"):
+        tested_interactions.to_csv(working_dir+f"final_results{split_nr}.tsv", index=False, sep='\t',mode='a', header=False)
+    else:
+        tested_interactions.to_csv(working_dir+f"final_results{split_nr}.tsv", index=False, sep='\t',mode='a')
+    if i==2: break
     
 
 
@@ -420,9 +438,10 @@ print('Split ',split_nr, 'out of ',n_splits,' is DONE')
 # In[ ]:
 
 
-#All jobs finished
+#All jobs finished and produced outputs
 for i in range(1,n_splits+1):
-    if os.path.exists('data'): exit() #Not all jobs finished
+    if os.path.exists(dir_trees_tmp+f"{i}"): exit()
+    if not os.path.exists(working_dir+f"final_results{i}.tsv"): exit()
     
 
 fr = [x for x in os.listdir(working_dir) if 'final_results' in x and 'final_results_all.tsv' not in x] #all jobs created the file
@@ -430,7 +449,10 @@ if len(fr) == n_splits:
 
     #appending everything together and Removing temp final results
     for final_result in fr:
-        pd.read_csv(os.path.join(working_dir,final_result), sep='\t').to_csv(working_dir+f"final_results_all.tsv", index=False, sep='\t',mode='a')
+        if os.path.exists(working_dir+f"final_results_all.tsv"):
+            pd.read_csv(os.path.join(working_dir,final_result), sep='\t').to_csv(working_dir+f"final_results_all.tsv", index=False, sep='\t',mode='a', header=False)
+        else:
+            pd.read_csv(os.path.join(working_dir,final_result), sep='\t').to_csv(working_dir+f"final_results_all.tsv", index=False, sep='\t',mode='a')
         os.remove(os.path.join(working_dir,final_result))
         #pass
         
@@ -438,7 +460,11 @@ if len(fr) == n_splits:
     #Adding tree performances and Removing temp final results
     pr = [x for x in os.listdir(working_dir) if 'tree_performances' in x and 'tree_performances_all.tsv' not in x]
     for tree_performance in pr:
-        pd.read_csv(os.path.join(working_dir,tree_performance), sep='\t').to_csv(working_dir+f"tree_performances_all.tsv", index=False, sep='\t',mode='a')
+        if os.path.exists(working_dir+f"tree_performances_all.tsv"):
+            pd.read_csv(os.path.join(working_dir,tree_performance), sep='\t').to_csv(working_dir+f"tree_performances_all.tsv", index=False, sep='\t',mode='a', header=False)
+        else:
+            pd.read_csv(os.path.join(working_dir,tree_performance), sep='\t').to_csv(working_dir+f"tree_performances_all.tsv", index=False, sep='\t',mode='a')
+        #pd.read_csv(os.path.join(working_dir,tree_performance), sep='\t').to_csv(working_dir+f"tree_performances_all.tsv", index=False, sep='\t',mode='a')
         os.remove(os.path.join(working_dir,tree_performance))
         #pass
 
