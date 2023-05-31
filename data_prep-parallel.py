@@ -101,7 +101,7 @@ except Exception as e:
 if os.path.exists(working_dir+f"final_results{split_nr}.tsv") and os.path.exists(working_dir+f"tree_performances{split_nr}.tsv"):
     print('Job previously run successfully!\nExiting')
     exit()
-    
+
 if os.path.exists(working_dir+f"final_results.tsv") and os.path.exists(working_dir+f"tree_performances.tsv"):
     print('Job previously run successfully!\nExiting')
     exit()
@@ -310,7 +310,7 @@ def test_interactions_high(df, data, max_order=4, repetitions_threshold=2, min_s
                 # "*" vs ":" #https://stackoverflow.com/questions/33050104/difference-between-the-interaction-and-term-for-formulas-in-statsmodels-ols
             except:
                 print('error in OLS')
-                print('coef_id',coef_id)
+                #print('coef_id',coef_id)
                 print('formula OLS',type(formula),formula)
                 #return pd.concat(final_results)
                 continue
@@ -413,7 +413,7 @@ for elm in drugs_list:
         tested_interactions.to_csv(working_dir+f"final_results{split_nr}.tsv", index=False, sep='\t',mode='a', header=False)
     else:
         tested_interactions.to_csv(working_dir+f"final_results{split_nr}.tsv", index=False, sep='\t',mode='a')
-    if i==2: break
+#    if i==2: break
     
 
 
