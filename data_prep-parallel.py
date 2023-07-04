@@ -273,6 +273,7 @@ def test_interactions_high(df, data, max_order=4, repetitions_threshold=2, min_s
         for v in df[(df.repetitions>=2) & (df.order==m_or)].variants.tolist():
             #preparing the input
             sp=v.split('+')
+            if len(sp) != len(set(sp)): continue
             xy = data[sp+['ln_IC50']]
             if drop_nans:
                 xy = xy.dropna()
