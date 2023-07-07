@@ -47,7 +47,7 @@ echo "Running batch task: ${TASK_NUM}  tag: $TASK_TAG"
 mkdir -p "${workingDir}"
 
 
-#module load R/4.1.3
+module load R/4.1.3
 #module load python/3.9.4
 module load python/3.11.0
 
