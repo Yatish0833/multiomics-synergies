@@ -20,18 +20,18 @@
 
 min_repetitions = 2 #Number of repetitions an interaction appears in the trees
 max_order = 4 
-working_dir = 'tmp/' #make sure it is empty
+working_dir = 'rocstool/tmp/' #make sure it is empty
 drop_nans = False
 
 #Ranger parameters
 n_trees = 1000 #Number of trees
 mtry = 100 # Number of variables to possibly split at in each node. Default is the (rounded down) square root of the number variables. 
-max_depth = 0# Maximal tree depth. A value of NULL or 0 (the default) corresponds to unlimited depth, 1 to tree stumps (1 split per tree).
+max_depth = 0 # Maximal tree depth. A value of NULL or 0 (the default) corresponds to unlimited depth, 1 to tree stumps (1 split per tree).
 min_node= 5 # Minimal node size. default ranger: 5
 
 # File inputs
-x_input = 'data/ProCan-DepMapSanger_protein_matrix_6692_averaged.xlsx'
-y_input = 'data/DrugResponse_PANCANCER_GDSC1_GDSC2_20200602.csv'
+x_input = 'data/train_protein_matrix.csv'
+y_input = '/datasets/work/hb-procan/work/data/DrugResponse_PANCANCER_GDSC1_GDSC2_20200602.csv'
 
 
 # In[ ]:
@@ -122,10 +122,11 @@ path_to_ranger_script = 'ranger_run-parallel.R' # Path to the ranger script
 
 #One row per cell line
 #DIR
-x = pd.read_excel(x_input, engine='openpyxl').drop(columns=['Project_Identifier'])
-c = [a.replace(';','.') for a in x.columns]
-x.columns = c
-x.columns
+# x = pd.read_excel(x_input, engine='openpyxl').drop(columns=['Project_Identifier'])
+# c = [a.replace(';','.') for a in x.columns]
+# x.columns = c
+# x.columns
+x = pd.read_csv(x_input)
 
 
 # In[ ]:
@@ -198,11 +199,12 @@ def get_interactions(tree, current_list, interactions):
     current_list.append(tree['splitVar'])
     if len(current_list) >= 2:
         for i in range(2,len(current_list)+1):
-            aux = '+'.join(sorted(current_list[-i:]))
-            if aux in interactions.keys():
-                interactions[aux] +=1
-            else:
-                interactions[aux] = 1
+            if len(current_list[-i-1:]) == len(set(current_list[-i-1:])):
+                aux = '+'.join(sorted(current_list[-i:]))
+                if aux in interactions.keys():
+                    interactions[aux] +=1
+                else:
+                    interactions[aux] = 1
                     
     if 'left' in tree.keys():
         get_interactions(tree['left'], current_list, interactions)
@@ -270,7 +272,7 @@ def test_interactions_high(df, data, max_order=4, repetitions_threshold=2, min_s
     for m_or in range(2,max_order+1):
         #print('current order',m_or)
         
-        for v in df[(df.repetitions>=2) & (df.order==m_or)].variants.tolist():
+        for v in df[(df.repetitions>=repetitions_threshold) & (df.order==m_or)].variants.tolist():
             #preparing the input
             sp=v.split('+')
             if len(sp) != len(set(sp)): continue
@@ -338,8 +340,11 @@ def test_interactions_high(df, data, max_order=4, repetitions_threshold=2, min_s
             results['snps'] = v
             results['order'] = len(sp)
             final_results.append(results)
-
-    final_results = pd.concat(final_results)
+    try:
+        final_results = pd.concat(final_results)  # this works for any amount of results, but none
+    except:
+        print('no results for this drug')
+        return pd.DataFrame(final_results)  # returns empty data frame
     return final_results
 
 
@@ -357,7 +362,8 @@ def test_interactions_high(df, data, max_order=4, repetitions_threshold=2, min_s
 
 #Making a temp file to run all R stuff
 #DIR
-os.system("mkdir -p "+dir_trees_tmp+f"{split_nr}")
+if not os.path.exists(dir_trees_tmp+f"{split_nr}"):
+    os.makedirs(dir_trees_tmp+f"{split_nr}")
 
 
 column_to_group = 'drug_id'
@@ -366,7 +372,7 @@ drugs_list = [drugs_list[i] for i in range(len(drugs_list)) if i%n_splits==split
 i = -1
 all_drug_results = []
 tree_performances = []
-for elm in drugs_list:
+for elm in drugs_list[9:13]:
     print(f"{path_to_R} {path_to_ranger_script}  -w {working_dir} -c {split_nr} -n {n_trees} -t {mtry} -s {min_node} -d {max_depth}")
     i+=1
     
