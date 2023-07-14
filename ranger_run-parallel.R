@@ -66,7 +66,8 @@ write.csv(final_df,paste0("tmp",args$split,"/aggregated_trees.csv"), row.names =
 
 
 df <- data.frame (MSE  = c(ra$prediction.error),
-                  OOB = c(ra$r.squared)
+                  OOB = c(ra$r.squared),
+                  pearsonR = cor(ra$predictions, X_df$label, method='pearson')
 )
 
 write.table(df, file=paste0("tmp",args$split,"/performance.tsv"), quote=FALSE, sep='\t')
