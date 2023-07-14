@@ -71,13 +71,13 @@ def results_fit_to_df(results, ols, y, test_data):
     cint_low = results.conf_int()[0].tolist()
     cint_high = results.conf_int()[1].tolist()
 
-    pred_y = ols.predict(results.params)
+    pred_y = results.predict()
     train_pear_R = pearsonr(pred_y, y)
     train_mse = np.square(y - pred_y).mean()
 
     test_y = test_data.lnICfa.to_list()
-    pred_y = ols.predict(results.params, test_data.drop("lnICfa"))
-    test_pear_R = personr(pred_y, test_y)
+    pred_y = results.predict(test_data)
+    test_pear_R = pearsonr(pred_y, test_y)
     test_mse = np.square(test_y - pred_y).mean()
 
     
@@ -114,7 +114,7 @@ def regression_per_drug(interactions, drug_list, alpha=0.05, filter=0):
         xy.columns = [''.join([chr(int(y)+97) if y.isnumeric() else y for y in x.replace('_','').replace('.','')]) for x in xy.columns]  # would be great to remove this
 
         test_xy = x_test.merge(y[y["drug_id"] == d], left_on='Cell_Line', right_on='cell_line_name')
-        xy.columns = [''.join([chr(int(y)+97) if y.isnumeric() else y for y in x_test.replace('_','').replace('.','')]) for x_test in test_xy.columns] 
+        test_xy.columns = [''.join([chr(int(y)+97) if y.isnumeric() else y for y in x_test.replace('_','').replace('.','')]) for x_test in test_xy.columns] 
         
 
         drug_interactions = interactions[interactions.drug == d].drop_duplicates(ignore_index=True)
