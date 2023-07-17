@@ -20,7 +20,7 @@
 
 min_repetitions = 2 #Number of repetitions an interaction appears in the trees
 max_order = 4 
-working_dir = 'rocstool/tmp/' #make sure it is empty
+working_dir = 'tmp/' #make sure it is empty
 drop_nans = False
 
 #Ranger parameters
@@ -32,6 +32,8 @@ min_node= 5 # Minimal node size. default ranger: 5
 # File inputs
 x_input = 'data/train_protein_matrix.csv'
 y_input = '/datasets/work/hb-procan/work/data/DrugResponse_PANCANCER_GDSC1_GDSC2_20200602.csv'
+
+test_input = 'data/test_protein_matrix.csv'
 
 
 # In[ ]:
@@ -128,7 +130,7 @@ path_to_ranger_script = 'ranger_run-parallel.R' # Path to the ranger script
 # x.columns
 x = pd.read_csv(x_input)
 
-
+test = pd.read_csv(test_input)
 # In[ ]:
 
 
@@ -380,12 +382,13 @@ for elm in drugs_list[9:13]:
 
     xy = x.merge(y[y[column_to_group]==elm], left_on='Cell_Line', right_on='cell_line_name')
     #Enhancement: Remove peptides that are all zero 
-    
+    test_xy = test.merge(y[y[column_to_group]==elm], left_on='Cell_Line', right_on='cell_line_name')
     # saving csv for R df
     # file name is generic but we could personalize it
     #DIR
     xy.drop(columns=['Cell_Line', 'cell_line_name','drug_id']).fillna(0).rename(columns={'ln_IC50':'label'}).to_csv(dir_trees_tmp+f"{split_nr}/data.csv", index=False)
 
+    test_xy.drop(columns=['Cell_Line', 'cell_line_name','drug_id']).fillna(0).rename(columns={'ln_IC50':'label'}).to_csv(dir_trees_tmp+f"{split_nr}/test_data.csv", index=False)
     #Run the R script to generate the outputs
     #os.system(f"{path_to_R} {path_to_ranger_script}  -w {working_dir} -c {split_nr} -n {n_trees} -t {mtry} -s {min_node} -d {max_depth}")
     print("R output (in case there is an error or something)")

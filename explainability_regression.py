@@ -95,8 +95,8 @@ def results_fit_to_df(results, ols, y, test_data):
     results['z'] = tvals 
     results['coef'] = coeffs
     results['converged'] = converged
-    results['pseudo_r2'] = pseudo_r2
-    results['adj_r2'] = adj_r2
+    results['train_pseudo_r2'] = pseudo_r2
+    results['train_adj_r2'] = adj_r2
     results["train_MSE"] = train_mse
     results["MSE"] = test_mse
     results['[0.025'] = cint_low
@@ -181,7 +181,7 @@ coef_05["version"] = "|Coef| > 0.5"
 baseline["version"] = "baseline"
 
 combined = pd.concat([baseline, coef_05], ignore_index=True) # TODO
-combined = combined[["MSE", "pseudo_r2", "adj_r2", "pearsonR", "order", "drug", "version"]].drop_duplicates(ignore_index=True)
+combined = combined[["train_pseudo_r2", "train_adj_r2", "train_MSE", "MSE", "train_pearsonR", "pearsonR", "drug", "order", "version"]].drop_duplicates(ignore_index=True)
 combined.to_csv(working_dir+"combined_performance.csv", index=False)
 
 sns.violinplot(data=combined, x="MSE", y="order", hue="version", cut=0, orient="h" )
