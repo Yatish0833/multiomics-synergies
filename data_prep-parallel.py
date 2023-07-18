@@ -374,7 +374,7 @@ drugs_list = [drugs_list[i] for i in range(len(drugs_list)) if i%n_splits==split
 i = -1
 all_drug_results = []
 tree_performances = []
-for elm in drugs_list[9:13]:
+for elm in drugs_list:
     print(f"{path_to_R} {path_to_ranger_script}  -w {working_dir} -c {split_nr} -n {n_trees} -t {mtry} -s {min_node} -d {max_depth}")
     i+=1
     
