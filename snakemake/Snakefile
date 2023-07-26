@@ -1,0 +1,119 @@
+import pandas as pd
+import numpy as np
+import os
+import sys
+
+DRUGS = pd.read_csv("data/DrugResponse_PANCANCER_GDSC1_GDSC2_20200602.csv", usecols=['drug_id']).drug_id.unique()
+DRUGS = np.sort(DRUGS)
+
+DRUGS = DRUGS  #[:2]  # for testing
+# print(DRUGS)
+
+# configfile: "config.json" # use for params in rf, syneromics and explainability
+
+for dir in ["data_tmp", "tmp", "exp_results", "syn_results"]:
+    if not os.path.exists(dir):
+        os.makedirs(dir)
+
+
+
+
+rule all:
+    input:
+        "exp_results/combined_performances.tsv",  # final output explainability
+        "syn_results/final_results.tsv",        # final output syneromics
+        "syn_results/tree_performances.tsv"      # final output syneromics
+
+
+# print(expand("data_tmp/{drug}_data.tsv", drug=DRUGS[:2]))
+
+rule create_data:   # this takes about 30 min
+    input:
+        train = "data/train_protein_matrix.csv",
+        test = "data/test_protein_matrix.csv",
+        response = "data/DrugResponse_PANCANCER_GDSC1_GDSC2_20200602.csv"
+    output:
+        train = temp(expand("data_tmp/{drug}_data.csv", drug=DRUGS)),
+        test = temp(expand("data_tmp/{drug}_test.csv", drug=DRUGS))
+    params:
+        max_drug = len(DRUGS) 
+    resources:
+        mem_mb = 1000,
+        time='1:00:00'
+    script:
+        "scripts/create_data.py"   
+
+
+rule random_forest:  # this takes up to 60 min per cpu job
+    input: 
+        train = "data_tmp/{drug}_data.csv",
+        test = "data_tmp/{drug}_test.csv"
+    output:
+        trees = temp("tmp/{drug}_aggregated_trees.csv"),
+        score = temp("tmp/{drug}_performance.tsv"),
+#        imp = temp("tmp/{drug}_importances.csv")
+    params:   # make these dynamic for cross validation (can be called with snakemake.params[0] ???)
+        drug = lambda wc: wc.get("drug"),
+        nTrees = 6000,
+        mtry = 100,
+        minNodeSize = 10,
+        maxDepth = 10,
+        workDir = "." 
+    resources:
+        mem_mb = 1000,
+        time='1:00:00'
+    script:
+        "scripts/ranger_run-parallel.R"  # TODO update
+
+rule syneromics: # this takes up to 25 min per cpu job
+    input:
+        trees = "tmp/{drug}_aggregated_trees.csv",
+        train = "data_tmp/{drug}_data.csv"
+    output:
+        temp("tmp/{drug}_final_results.tsv")
+    params:
+        drug = lambda wc: wc.get("drug"),
+        maxOrder = 4,
+        minReps = 2 
+    resources:
+        mem_mb = 1000,
+        time='1:00:00'
+    script:
+        "scripts/syneromics.py"
+
+
+rule explainability:
+    input:
+        train = "data_tmp/{drug}_data.csv",
+        test = "data_tmp/{drug}_test.csv",
+        synergies = "tmp/{drug}_final_results.tsv"
+    output:
+        temp("tmp/{drug}_regression.tsv")
+    params:
+        alpha = [0.05, 0.01],
+        filter = [0, 0.5] 
+    resources:
+        mem_mb = 5000,
+        time='1:00:00'
+    script:
+        "scripts/explainability.py"
+
+# print(expand("tmp/{drug}_performance.tsv", drug=DRUGS[:2]))
+
+rule combine:
+    input:
+        rf_score = expand("tmp/{drug}_performance.tsv", drug=DRUGS),
+        synergies = expand("tmp/{drug}_final_results.tsv", drug=DRUGS),
+        explained = expand("tmp/{drug}_regression.tsv", drug=DRUGS)
+    output:
+        synergies = "syn_results/final_results.tsv",
+        rf_scores = "syn_results/tree_performances.tsv",
+        exp_scores = "exp_results/combined_performances.tsv",
+        exp_models = "exp_results/combined_models.tsv" 
+    resources:
+        mem_mb = 10000,
+        time='2:00:00'
+    script:
+        "scripts/combine.py"
+        
+        
