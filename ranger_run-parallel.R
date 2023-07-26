@@ -73,7 +73,7 @@ df <- data.frame (train_MSE  = c(ra$prediction.error),
                   train_OOB = c(ra$r.squared),
                   train_pearsonR = cor(ra$predictions, X_df$label, method='pearson'),
                   MSE = mean((test_df$label - test_y$predictions)^2),
-                  pearsonR = cor(test_df$label, test_y$predictions, method = 'pearson')
+                  pearsonR = cor(test_y$predictions, test_df$label, method = 'pearson')
 )
 # print("data frame created")
 write.table(df, file=paste0("tmp",args$split,"/performance.tsv"), quote=FALSE, sep='\t')
