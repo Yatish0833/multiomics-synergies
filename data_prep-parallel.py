@@ -20,7 +20,7 @@
 
 min_repetitions = 2 #Number of repetitions an interaction appears in the trees
 max_order = 4 
-working_dir = 'tmp/' #make sure it is empty
+working_dir = 'rocstool/tmp/' #make sure it is empty
 drop_nans = False
 
 #Ranger parameters
@@ -135,7 +135,7 @@ test = pd.read_csv(test_input)
 
 
 #DIR
-y = pd.read_csv(y_input)[['drug_id','cell_line_name','ln_IC50']]
+y = pd.read_csv(y_input)[['drug_id','cell_line_name','ln_IC50', 'max_screening_conc']]
 y.columns
 
 
@@ -201,7 +201,7 @@ def get_interactions(tree, current_list, interactions):
     current_list.append(tree['splitVar'])
     if len(current_list) >= 2:
         for i in range(2,len(current_list)+1):
-            if len(current_list[-i-1:]) == len(set(current_list[-i-1:])):
+              if len(current_list[-i-1:]) == len(set(current_list[-i-1:])) and "maxscreeningconc" not in current_list:
                 aux = '+'.join(sorted(current_list[-i:]))
                 if aux in interactions.keys():
                     interactions[aux] +=1
@@ -278,16 +278,16 @@ def test_interactions_high(df, data, max_order=4, repetitions_threshold=2, min_s
             #preparing the input
             sp=v.split('+')
             if len(sp) != len(set(sp)): continue
-            xy = data[sp+['ln_IC50']]
+            xy = data[sp+["max_screening_conc", 'ln_IC50']]
             if drop_nans:
                 xy = xy.dropna()
-            if len(xy.columns) <= m_or: continue #not enough columns
+            if len(xy.columns) <= m_or: continue #not enough columns # how would we get that case? deccision over the same protein several times?
             if len(xy) <= min_samples: continue #not enough rows
             sp=v.replace('_','').split('+')
             xy.columns = [''.join([chr(int(y)+97) if y.isnumeric() else y for y in x.replace('_','').replace('.','')]) for x in xy.columns]
             formula = xy.columns[-1]+' ~ '
             for i in range(1,len(xy.columns)):
-                formula = formula + ' + '.join(['*'.join(o) for o in list(combinations(xy.columns[:-1],i))])
+                formula = formula + ' + '.join(['*'.join(o) for o in list(combinations(xy.columns[:-2],i))])
                 formula = formula + ' + '
             formula = formula.rstrip(' + ')
             
@@ -299,6 +299,7 @@ def test_interactions_high(df, data, max_order=4, repetitions_threshold=2, min_s
                 all_interactions = [a.replace('*',':') for a in fs if '*' in a]
                 final_results = pd.concat(final_results)
                 subset = final_results[final_results.coef_id.apply(lambda a: a in all_interactions)].reset_index(drop=True)
+
                 final_results = [final_results]
                 if len(subset)>0:
                     max_idx = subset['coef'].astype(float).abs().idxmax()
@@ -311,7 +312,7 @@ def test_interactions_high(df, data, max_order=4, repetitions_threshold=2, min_s
 
             # Standard fitting
             try:
-                ols = smf.ols(formula.replace('*',':'),data=xy)
+                ols = smf.ols(formula.replace('*',':') + " + maxscreeningconc",data=xy)
                 # "*" vs ":" #https://stackoverflow.com/questions/33050104/difference-between-the-interaction-and-term-for-formulas-in-statsmodels-ols
             except:
                 print('error in OLS')
