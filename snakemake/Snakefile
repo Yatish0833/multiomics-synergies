@@ -3,13 +3,14 @@ import numpy as np
 import os
 import sys
 
-DRUGS = pd.read_csv("data/DrugResponse_PANCANCER_GDSC1_GDSC2_20200602.csv", usecols=['drug_id']).drug_id.unique()
+configfile: "config.json" # use for params in rf, syneromics and explainability
+
+DRUGS = pd.read_csv("data/" + config["y"], usecols=['drug_id']).drug_id.unique()
 DRUGS = np.sort(DRUGS)
 
-DRUGS = DRUGS  #[:2]  # for testing
+DRUGS = DRUGS  # for testing
 # print(DRUGS)
 
-# configfile: "config.json" # use for params in rf, syneromics and explainability
 
 for dir in ["data_tmp", "tmp", "exp_results", "syn_results"]:
     if not os.path.exists(dir):
@@ -29,16 +30,16 @@ rule all:
 
 rule create_data:   # this takes about 30 min
     input:
-        train = "data/train_protein_matrix.csv",
-        test = "data/test_protein_matrix.csv",
-        response = "data/DrugResponse_PANCANCER_GDSC1_GDSC2_20200602.csv"
+        train = "data/" + config["train"],
+        test = "data/" + config["test"],
+        response = "data/" + config["y"]
     output:
         train = temp(expand("data_tmp/{drug}_data.csv", drug=DRUGS)),
         test = temp(expand("data_tmp/{drug}_test.csv", drug=DRUGS))
     params:
         max_drug = len(DRUGS) 
     resources:
-        mem_mb = 1000,
+        mem_mb = 800,
         time='1:00:00'
     script:
         "scripts/create_data.py"   
@@ -60,10 +61,10 @@ rule random_forest:  # this takes up to 60 min per cpu job
         maxDepth = 10,
         workDir = "." 
     resources:
-        mem_mb = 1000,
+        mem_mb = 2000,
         time='1:00:00'
     script:
-        "scripts/ranger_run-parallel.R"  # TODO update
+        "scripts/ranger_run-parallel.R"
 
 rule syneromics: # this takes up to 25 min per cpu job
     input:
@@ -76,7 +77,7 @@ rule syneromics: # this takes up to 25 min per cpu job
         maxOrder = 4,
         minReps = 2 
     resources:
-        mem_mb = 1000,
+        mem_mb = 2000,
         time='1:00:00'
     script:
         "scripts/syneromics.py"
@@ -93,8 +94,8 @@ rule explainability:
         alpha = [0.05, 0.01],
         filter = [0, 0.5] 
     resources:
-        mem_mb = 5000,
-        time='1:00:00'
+        mem_mb = 6000,
+        time='4:00:00'
     script:
         "scripts/explainability.py"
 
@@ -111,7 +112,7 @@ rule combine:
         exp_scores = "exp_results/combined_performances.tsv",
         exp_models = "exp_results/combined_models.tsv" 
     resources:
-        mem_mb = 10000,
+        mem_mb = 5000,
         time='2:00:00'
     script:
         "scripts/combine.py"

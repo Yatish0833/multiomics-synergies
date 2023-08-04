@@ -15,7 +15,7 @@ aggregated_trees_df = pd.read_csv(snakemake.input["trees"])
 
 synergies = {}
 
-aggregated_trees_list = aggregated_trees_df.tree.unique()  # shouldn't this just be 1:numberOfTrees?
+aggregated_trees_list = aggregated_trees_df.tree.unique()  
 for tree_nr in aggregated_trees_list:
     tree_df = aggregated_trees_df[aggregated_trees_df.tree==tree_nr]  # get rows to current tree
     tree_json = from_table_to_json(tree_df)        # change format

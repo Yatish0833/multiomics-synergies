@@ -25,7 +25,7 @@ for model in snakemake.input["explained"]:
     else:
         df.to_csv(snakemake.output["exp_models"], index=False, sep='\t',mode='a')
 
-    df = df[["train_pseudo_r2", "train_adj_r2", "train_MSE", "MSE", "train_pearsonR", "pearsonR", "drug", "order", "version"]].drop_duplicates(ignore_index=True)
+    df = df[["train_pseudo_r2", "train_adj_r2", "train_MSE", "MSE", "train_pearsonR", "pearsonR", "drug", "order", "config"]].drop_duplicates(ignore_index=True)
     if os.path.exists(snakemake.output["exp_scores"]):
         df.to_csv(snakemake.output["exp_scores"], index=False, sep='\t', mode='a', header=False)
     else:

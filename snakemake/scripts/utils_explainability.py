@@ -71,57 +71,29 @@ def explain_regression(xy, test_xy, synergies, drug, alpha=0.05, filter=0):
     final_results = []
     # with each interration add more interaction information to the regression formula
     for o in [1,2,4]:
-        excluded = sig_interactions.coef_id[sig_interactions.order<=o].drop_duplicates(ignore_index=True).to_list() + protein_list
-        included = []
-        print("number of possible variables:", len(excluded))
-
-        while excluded:
-            p_vals = []
-            # forward
-            for variable in excluded:
-                formular = "lnICfa" + " ~ maxscreeningconc + "
-                formular = formular + " + ".join(included + [variable])
+        included = list(set(sig_synergies.coef_id[sig_synergies.order<=o])) + protein_list
         
-                results = smf.ols(formular, data=data).fit(disp=False, maxiter=1000)
-                p_vals.append(results.pvalues[variable])
-            best_p = np.min(p_vals)
-            if best_p < alpha:
-                i = np.argmin(p_vals)
-                included.append(excluded.pop(i))
-            else:
-                print(f'Terminated with best p-value: {best_p}')
-                break
-            # backward
-            formular = "lnICfa" + " ~ maxscreeningconc + "
-            formular = formular + " + ".join(included)
-            results = smf.ols(formular, data=data).fit(disp=False, maxiter=1000)
-            worst_p = np.max(results.pvalues)
-            i = np.argmax(results.pvalues) - 2  #  (intercept and maxscreen)
-            if i <= 0: continue
-            if worst_p > alpha:
-                del included[i]
-        
-        formular = "lnICfa" + " ~ maxscreeningconc + "
+        formular = "label" + " ~ maxscreeningconc + "
         formular = formular + " + ".join(included)
         
         try:
             ols = smf.ols(formular,data=data)
         except Exception as inst:
             print(type(inst))
-            print('error in OLS, drug', d, "order: ", o, "number of variables (+)", formular.count('+') )
-            print(sig_interactions.shape, len(protein_list))
-            j += 1
+            print('error in OLS, drug', drug, "order: ", o, "number of variables (+)", formular.count('+') )
+            print(sig_synergies.shape, len(protein_list))
+            # j += 1
             
             break  # we do not need to check any higher order, if the lower order already fails due to recursion depth
         ols.raise_on_perfect_prediction = False #preventing the perfect separation error
         results = ols.fit(maxiter=100) #method prevents singular matrix
-        results = results_fit_to_df(results, ols, data["lnICfa"].to_list(), test_data)
+        results = results_fit_to_df(results, ols, data["label"].to_list(), test_data)
         results["order"] = o
-        results["drug"] = d
+        results["drug"] = drug
         results["n_prot"] = len(protein_list) 
-        results["n_obs"] = len(data.lnICfa)
+        results["n_obs"] = len(data.label)
         results["n_feat"] = len(included)
-        results["n_syn"] = formular.count(':')
+        results["n_syn"] = formular.count(':')  # this value can be wrong since we don't only have 2nd order synergies
         final_results.append(results)
     return final_results
     
