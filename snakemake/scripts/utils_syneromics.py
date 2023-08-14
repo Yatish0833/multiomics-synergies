@@ -69,6 +69,11 @@ def get_interactions(tree, current_list, interactions):
     _ = current_list.pop()
 
 
+def undo(string):    
+    string = ''.join([ x if ord(x)<90 else str(ord(x)-97) for x in string ])
+    string = string[:6]+'.'+string[6:].replace('HUMAN', '_HUMAN') #not sure these 6
+    return string
+
 def results_fit_to_df(results):
     coeffs = results.params.tolist()
     pvals = results.pvalues.tolist()
@@ -183,7 +188,7 @@ def test_interactions_high(df, data, max_order=4, repetitions_threshold=2, min_s
                     continue
 
 
-            results['snps'] = v   # aren't these proteins here
+            results['snps'] = '*'.join([undo(x) for x in v.split('+')])   # aren't these proteins here
             results['order'] = len(sp)
             final_results.append(results) #shouldn't we filter at this point?
 

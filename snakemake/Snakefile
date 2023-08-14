@@ -8,7 +8,7 @@ configfile: "config.json" # use for params in rf, syneromics and explainability
 DRUGS = pd.read_csv("data/" + config["y"], usecols=['drug_id']).drug_id.unique()
 DRUGS = np.sort(DRUGS)
 
-DRUGS = DRUGS  # for testing
+DRUGS = DRUGS[:2]  # for testing
 # print(DRUGS)
 
 
@@ -26,7 +26,6 @@ rule all:
         "syn_results/tree_performances.tsv"      # final output syneromics
 
 
-# print(expand("data_tmp/{drug}_data.tsv", drug=DRUGS[:2]))
 
 rule create_data:   # this takes about 30 min
     input:
@@ -37,7 +36,8 @@ rule create_data:   # this takes about 30 min
         train = temp(expand("data_tmp/{drug}_data.csv", drug=DRUGS)),
         test = temp(expand("data_tmp/{drug}_test.csv", drug=DRUGS))
     params:
-        max_drug = len(DRUGS) 
+        max_drug = len(DRUGS),
+        nan_removed = config['nan']
     resources:
         mem_mb = 800,
         time='1:00:00'
@@ -55,10 +55,10 @@ rule random_forest:  # this takes up to 60 min per cpu job
 #        imp = temp("tmp/{drug}_importances.csv")
     params:   # make these dynamic for cross validation (can be called with snakemake.params[0] ???)
         drug = lambda wc: wc.get("drug"),
-        nTrees = 6000,
-        mtry = 100,
-        minNodeSize = 10,
-        maxDepth = 10,
+        nTrees = config["nTrees"],
+        mtry = config["mtry"],
+        minNodeSize = config["minNodeSize"],
+        maxDepth = config["maxDepth"],
         workDir = "." 
     resources:
         mem_mb = 2000,
@@ -74,10 +74,10 @@ rule syneromics: # this takes up to 25 min per cpu job
         temp("tmp/{drug}_final_results.tsv")
     params:
         drug = lambda wc: wc.get("drug"),
-        maxOrder = 4,
-        minReps = 2 
+        maxOrder = config["maxOrder"],
+        minReps = config["minReps"]
     resources:
-        mem_mb = 2000,
+        mem_mb = 3000,
         time='1:00:00'
     script:
         "scripts/syneromics.py"
@@ -91,8 +91,11 @@ rule explainability:
     output:
         temp("tmp/{drug}_regression.tsv")
     params:
-        alpha = [0.05, 0.01],
-        filter = [0, 0.5] 
+        alpha = config["alpha"],
+        filter = config["filter"],
+        regularized = config["regularized"]
+    envmodules:
+        "./lasso/bin/python"
     resources:
         mem_mb = 6000,
         time='4:00:00'

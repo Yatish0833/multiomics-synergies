@@ -13,7 +13,10 @@ from itertools import combinations
 import matplotlib.pyplot as plt
 import seaborn as sns
 
-from utils_explainability import explain_regression
+from utils_explainability import explain_regression, undo
+from utils_reg_explainability import regularized_regression
+
+
 
 sys.setrecursionlimit(50000)
 
@@ -25,10 +28,14 @@ synergies = pd.read_csv(snakemake.input["synergies"], sep='\t')
 results = []
 for alpha in snakemake.params["alpha"]:
     for filter in snakemake.params["filter"]:
-        result = explain_regression(data, test, synergies, snakemake.wildcards["drug"], alpha, filter)
+        if snakemake.params["regularized"]:
+            result = regularized_regression(data, test, synergies, snakemake.wildcards["drug"], alpha, filter, 'sqrt_lasso')
+        else: 
+            result = explain_regression(data, test, synergies, snakemake.wildcards["drug"], alpha, filter)
         if result:
             df = pd.concat(result)
             df["config"] = f'a: {alpha} f: {filter}'
+            df["Proteins"] = ['+'.join([y if y in ["Intercept", "maxscreeningconc"] else undo(x) for y in x.split(':')]) for x in df.coef_id]
             results.append(df)
 if results:        
     results = pd.concat(results)
