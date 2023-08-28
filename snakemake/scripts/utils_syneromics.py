@@ -70,7 +70,7 @@ def get_interactions(tree, current_list, interactions):
 
 
 def undo(string):    
-    string = ''.join([ x if ord(x)<90 else str(ord(x)-97) for x in string ])
+    string = ''.join([ x if ord(x)<91 else str(ord(x)-97) for x in string ])
     string = string[:6]+'.'+string[6:].replace('HUMAN', '_HUMAN') #not sure these 6
     return string
 
@@ -177,7 +177,8 @@ def test_interactions_high(df, data, max_order=4, repetitions_threshold=2, min_s
 
             #If nan means no convergence bc singular matrix
             #adding regularization
-            if 'nan' == pd.DataFrame(results)['z'].astype(str).iloc[2].strip():
+            if results['z'].isna().sum():
+                print("found missing value")
                 try:
                     results = ols.fit_regularized(method='l1', disp=False, maxiter=1000, alpha=0.3) #mehtod prevents singular matrix
                     results = results_fit_to_df(results)
@@ -190,6 +191,6 @@ def test_interactions_high(df, data, max_order=4, repetitions_threshold=2, min_s
 
             results['snps'] = '*'.join([undo(x) for x in v.split('+')])   # aren't these proteins here
             results['order'] = len(sp)
-            final_results.append(results) #shouldn't we filter at this point?
+            final_results.append(results)
 
     return final_results

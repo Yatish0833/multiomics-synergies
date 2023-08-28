@@ -24,7 +24,7 @@ for tree_nr in aggregated_trees_list:
 df = pd.DataFrame({'variants':synergies.keys(), 'repetitions':synergies.values()})
 df['order'] = df.variants.apply(lambda x: x.count('+')+1)
 
-tested_synergies = test_interactions_high(df, data, max_order=snakemake.params["maxOrder"], repetitions_threshold=snakemake.params["minReps"], drop_nans=False) #here you define which order of interactions you want to compute
+tested_synergies = test_interactions_high(df, data, max_order=snakemake.params["maxOrder"], repetitions_threshold=snakemake.params["minReps"], drop_nans=True) #here you define which order of interactions you want to compute
     
 if tested_synergies:    
     tested_synergies = pd.concat(tested_synergies)

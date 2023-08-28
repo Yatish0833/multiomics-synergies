@@ -61,8 +61,8 @@ rule random_forest:  # this takes up to 60 min per cpu job
         maxDepth = config["maxDepth"],
         workDir = "." 
     resources:
-        mem_mb = 2000,
-        time='1:00:00'
+        mem_mb = 2500,
+        time='2:00:00'
     script:
         "scripts/ranger_run-parallel.R"
 
@@ -77,43 +77,62 @@ rule syneromics: # this takes up to 25 min per cpu job
         maxOrder = config["maxOrder"],
         minReps = config["minReps"]
     resources:
-        mem_mb = 3000,
+        mem_mb = 4000,
         time='1:00:00'
     script:
         "scripts/syneromics.py"
+    
+    
+        
+rule single_proteins:
+    input:
+        train = "data_tmp/{drug}_data.csv",
+        test = "data_tmp/{drug}_test.csv"
+    output:
+        temp("tmp/{drug}_proteins.csv")
+    params:
+        drug = lambda wc: wc.get("drug")
+    resources:
+        mem_mb = 3000,
+        time='4:00:00'
+    script:
+        "scripts/protein_regression.py"
+
 
 
 rule explainability:
     input:
         train = "data_tmp/{drug}_data.csv",
         test = "data_tmp/{drug}_test.csv",
-        synergies = "tmp/{drug}_final_results.tsv"
+        synergies = "tmp/{drug}_final_results.tsv",
+        proteins = "tmp/{drug}_proteins.csv"
     output:
         temp("tmp/{drug}_regression.tsv")
     params:
+        drug = lambda wc: wc.get("drug"),
         alpha = config["alpha"],
         filter = config["filter"],
         regularized = config["regularized"]
-    envmodules:
-        "./lasso/bin/python"
     resources:
-        mem_mb = 6000,
-        time='4:00:00'
-    script:
-        "scripts/explainability.py"
+        mem_mb = 24000,  #only for regularization needed
+        time='6:00:00'
+    shell:
+        "lasso/bin/python scripts/explainability.py {input.train} {input.test} {input.synergies} {input.proteins} {output} {wildcards.drug} -a {params.alpha} -f {params.filter} -r {params.regularized}"
 
-# print(expand("tmp/{drug}_performance.tsv", drug=DRUGS[:2]))
+
 
 rule combine:
     input:
         rf_score = expand("tmp/{drug}_performance.tsv", drug=DRUGS),
         synergies = expand("tmp/{drug}_final_results.tsv", drug=DRUGS),
-        explained = expand("tmp/{drug}_regression.tsv", drug=DRUGS)
+        explained = expand("tmp/{drug}_regression.tsv", drug=DRUGS),
+        proteins = expand("tmp/{drug}_proteins.csv", drug=DRUGS)
     output:
         synergies = "syn_results/final_results.tsv",
         rf_scores = "syn_results/tree_performances.tsv",
         exp_scores = "exp_results/combined_performances.tsv",
-        exp_models = "exp_results/combined_models.tsv" 
+        exp_models = "exp_results/combined_models.tsv",
+        exp_proteins = "exp_results/protein_models.tsv"
     resources:
         mem_mb = 5000,
         time='2:00:00'
