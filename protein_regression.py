@@ -21,7 +21,8 @@ from scipy.stats import pearsonr
 import seaborn as sns
 from random import sample, seed
 
-
+import warnings
+warnings.filterwarnings("ignore")
 # In[10]:
 
 
@@ -112,6 +113,8 @@ for d in drug_list:
     c = 0
     xy = x.merge(y[y["drug_id"]==d], left_on='CellLine', right_on='cell_line_name')
     test_xy = x_test.merge(y[y["drug_id"] == d], left_on='CellLine', right_on='cell_line_name')
+    if len(xy.CellLine) < 300*0.8: continue
+
     for p in protein_list:
 
         
@@ -120,7 +123,7 @@ for d in drug_list:
 
         # print(f'For drug {d} and {p} there are {len(data[p])} and {len(test_data[p])} cell lines')
 
-        if len(test_data[p]) < 8:
+        if len(test_data[p]) < 8 or len(data[p]) < 8:
             # print(f'Not enough test cell lines for protein {p} and drug {d}, n = {len(test_data[p])}')
             c += 1
             continue
