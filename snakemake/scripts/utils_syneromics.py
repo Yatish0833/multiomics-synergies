@@ -71,7 +71,7 @@ def get_interactions(tree, current_list, interactions):
 
 def undo(string):    
     string = ''.join([ x if ord(x)<91 else str(ord(x)-97) for x in string ])
-    string = string[:6]+'.'+string[6:].replace('HUMAN', '_HUMAN') #not sure these 6
+    #string = string[:6]+'.'+string[6:].replace('HUMAN', '_HUMAN') #not sure these 6
     return string
 
 def results_fit_to_df(results):
@@ -114,20 +114,21 @@ def test_interactions_high(df, data, max_order=4, repetitions_threshold=2, min_s
     for m_or in range(2,max_order+1):
         #print('current order',m_or)
         
-        for v in df[(df.repetitions>=2) & (df.order==m_or)].variants.tolist():  
+        for v in df[(df.repetitions>=repetitions_threshold) & (df.order==m_or)].variants.tolist():  
             #preparing the input
             sp=v.split('+')
             if len(sp) != len(set(sp)): continue
-            xy = data[sp+["maxscreeningconc", 'label']]
+            xy = data[sp+['label']]
             if drop_nans:
-                xy = xy.loc[~(df==0).all(axis=1)]
-            if len(xy.columns) <= m_or: continue #not enough columns # how would we get that case? deccision over the same protein several times?
+                xy = xy.loc[~(xy==0).all(axis=1)]
+            if len(xy.columns) <= m_or: continue 
             if len(xy) <= min_samples: continue #not enough rows
-            sp=v.replace('_','').split('+')
-            xy.columns = [''.join([chr(int(y)+97) if y.isnumeric() else y for y in x.replace('_','').replace('.','')]) for x in xy.columns]
+            #sp=v.replace('_','').split('+')
+            #xy.columns = [''.join([chr(int(y)+97) if y.isnumeric() else y for y in x.replace('_','').replace('.','')]) for x in xy.columns]
+            
             formula = xy.columns[-1]+' ~ '
             for i in range(1,len(xy.columns)):
-                formula = formula + ' + '.join(['*'.join(o) for o in list(combinations(xy.columns[:-2],i))])
+                formula = formula + ' + '.join(['*'.join(o) for o in list(combinations(xy.columns[:-1],i))])
                 formula = formula + ' + '
             formula = formula.rstrip(' + ')
             # print("We are using this formula for this case")
@@ -160,7 +161,7 @@ def test_interactions_high(df, data, max_order=4, repetitions_threshold=2, min_s
             
             # Standard fitting
             try:
-                ols = smf.ols(formula.replace('*',':') + " + maxscreeningconc",data=xy)  # why are we not encoding it the right way immediately?
+                ols = smf.ols(formula.replace('*',':'),data=xy)  # why are we not encoding it the right way immediately?
                 # "*" vs ":" #https://stackoverflow.com/questions/33050104/difference-between-the-interaction-and-term-for-formulas-in-statsmodels-ols
             except:
                 print('error in OLS')

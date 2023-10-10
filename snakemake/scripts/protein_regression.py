@@ -58,20 +58,15 @@ def results_fit_to_df(results, ols, y, test_data):
 
 xy = pd.read_csv(snakemake.input["train"])
 test_xy = pd.read_csv(snakemake.input["test"])
-protein_list = xy.columns[:-2].to_list() + ['DOSIS']
-
+protein_list = xy.columns[:-1].to_list()
+print(xy.columns[-2:])
 drop_nans = True
 
 regression_results = []
 for p in protein_list:
-    if p == 'DOSIS':
-        data = xy[["label", "maxscreeningconc"]]
-        test_data = test_xy[["label", "maxscreeningconc"]]
-        formula = "label ~ maxscreeningconc"
-    else:
-        data = xy[["label", "maxscreeningconc", p]]
-        test_data = test_xy[["label", "maxscreeningconc", p]].dropna()    
-        formula = "label ~ maxscreeningconc + " + p
+    data = xy[["label", p]]
+    test_data = test_xy[["label", p]].dropna()    
+    formula = "label ~ " + p
 
     if drop_nans:
         data = data.loc[~(data==0.0).all(axis=1)]  # is this the correct call?

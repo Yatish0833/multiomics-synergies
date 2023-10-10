@@ -6,7 +6,7 @@ import shutil
 
 import statsmodels.formula.api as smf
 from statsmodels.stats.multitest import fdrcorrection, multipletests
-from scipy.stats import pearsonr
+from scipy.stats import pearsonr, spearmanr
 
 from itertools import combinations
 
@@ -15,7 +15,7 @@ import seaborn as sns
 
 def undo(string):    
     string = ''.join([ x if ord(x)<91 else str(ord(x)-97) for x in string ])
-    string = string[:6]+'.'+string[6:].replace('HUMAN', '_HUMAN') #not sure these 6
+    # string = string[:6]+'.'+string[6:].replace('HUMAN', '_HUMAN') #not sure these 6
     return string
 
 def results_fit_to_df(results, ols, y, test_data):
@@ -64,11 +64,10 @@ def results_fit_to_df(results, ols, y, test_data):
 
 
 def explain_regression(data, test_data, synergies, proteins, drug, alpha=0.05, filter=0):
-    # sig = fdrcorrection(synergies["P>|z|"], alpha=alpha, method='indep', is_sorted=False)[0]
-    # synergies = synergies[sig].reset_index()
-    sig_synergies = synergies[(np.abs(synergies.coef)>=filter) & (synergies.p_corrected < alpha)][["coef_id", "order"]]
-    # protein_list = np.unique([y for x in sig_synergies.coef_id for y in x.split(":")]).tolist()  # all proteins used in significant synergies of that drug
-    protein_list = proteins.coef_id[proteins.p_corrected < alpha].to_list()
+    sig_synergies = synergies[(np.abs(synergies['coef'])>=filter) & (synergies.p_corrected < alpha)][["coef_id", "order"]]
+
+    proteins = proteins[proteins.p_corrected < alpha].sort_values(['p_corrected']).head(500) # top 500 proteins from dingle protein regression
+    protein_list = proteins.coef_id.to_list()
 
     # print(protein_list)
     final_results = []
@@ -79,7 +78,7 @@ def explain_regression(data, test_data, synergies, proteins, drug, alpha=0.05, f
     for o in [1,2,4]:
         included = list(set(sig_synergies.coef_id[sig_synergies.order<=o])) + protein_list
         
-        formular = "label" + " ~ maxscreeningconc + "
+        formular = "label ~ "
         formular = formular + " + ".join(included)
         
         try:
