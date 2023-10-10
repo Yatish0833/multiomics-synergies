@@ -1,13 +1,15 @@
-train: train_protein_matrix.csv
-test: test_protein_matrix.csv
-y: drug_response_300_cls.csv
-nan: 0.0
+train: train_subset_matrix.csv
+test: test_subset_matrix.csv
+y: pc_drug_response.csv
+test_y: bc_drug_response.csv  # not used in create_data.py at the moment
+nan: 0
 nTrees: 6000
 mtry: 500
 minNodeSize: 10
 maxDepth: 15
 maxOrder: 4
 minReps: 2
-alpha: 0.05 # 0.01
-filter: 0 0.5
-regularized: 1
+exp_mem: 10000
+alpha: 0.05  # currently parsed, can be turned into list but then explainability.py needs to be updated
+filter: 0.2  # currently parsed, can be turned into list but then explainability.py needs to be updated
+regularized: 0

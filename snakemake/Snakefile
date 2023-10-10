@@ -5,14 +5,14 @@ import sys
 
 configfile: "config.json" # use for params in rf, syneromics and explainability
 
-DRUGS = pd.read_csv("data/" + config["y"], usecols=['drug_id']).drug_id.unique()
+DRUGS = pd.read_csv("data/" + config["y"], usecols=['CHEMBL']).CHEMBL.unique()
 DRUGS = np.sort(DRUGS)
 
-DRUGS = DRUGS[:2]  # for testing
+#DRUGS = DRUGS[:2]  # for testing
 # print(DRUGS)
 
 
-for dir in ["data_tmp", "tmp", "exp_results", "syn_results"]:
+for dir in ["/scratch3/wen068/data_tmp", "tmp", "exp_results", "syn_results"]:
     if not os.path.exists(dir):
         os.makedirs(dir)
 
@@ -31,10 +31,11 @@ rule create_data:   # this takes about 30 min
     input:
         train = "data/" + config["train"],
         test = "data/" + config["test"],
-        response = "data/" + config["y"]
+        response = "data/" + config["y"],
+        test_response = "data/" + config["test_y"]
     output:
-        train = temp(expand("data_tmp/{drug}_data.csv", drug=DRUGS)),
-        test = temp(expand("data_tmp/{drug}_test.csv", drug=DRUGS))
+        train = temp(expand("/scratch3/wen068/data_tmp/{drug}_data.csv", drug=DRUGS)),
+        test = temp(expand("/scratch3/wen068/data_tmp/{drug}_test.csv", drug=DRUGS))
     params:
         max_drug = len(DRUGS),
         nan_removed = config['nan']
@@ -47,12 +48,12 @@ rule create_data:   # this takes about 30 min
 
 rule random_forest:  # this takes up to 60 min per cpu job
     input: 
-        train = "data_tmp/{drug}_data.csv",
-        test = "data_tmp/{drug}_test.csv"
+        train = "/scratch3/wen068/data_tmp/{drug}_data.csv",
+        test = "/scratch3/wen068/data_tmp/{drug}_test.csv"
     output:
-        trees = temp("tmp/{drug}_aggregated_trees.csv"),
-        score = temp("tmp/{drug}_performance.tsv"),
-#        imp = temp("tmp/{drug}_importances.csv")
+        trees = temp("/scratch3/wen068/tmp/{drug}_aggregated_trees.csv"),
+        score = temp("/scratch3/wen068/tmp/{drug}_performance.tsv"),
+#        imp = temp("/scratch3/wen068/tmp/{drug}_importances.csv")
     params:   # make these dynamic for cross validation (can be called with snakemake.params[0] ???)
         drug = lambda wc: wc.get("drug"),
         nTrees = config["nTrees"],
@@ -68,17 +69,17 @@ rule random_forest:  # this takes up to 60 min per cpu job
 
 rule syneromics: # this takes up to 25 min per cpu job
     input:
-        trees = "tmp/{drug}_aggregated_trees.csv",
-        train = "data_tmp/{drug}_data.csv"
+        trees = "/scratch3/wen068/tmp/{drug}_aggregated_trees.csv",
+        train = "/scratch3/wen068/data_tmp/{drug}_data.csv"
     output:
-        temp("tmp/{drug}_final_results.tsv")
+        temp("/scratch3/wen068/tmp/{drug}_final_results.tsv")
     params:
         drug = lambda wc: wc.get("drug"),
         maxOrder = config["maxOrder"],
         minReps = config["minReps"]
     resources:
-        mem_mb = 4000,
-        time='1:00:00'
+        mem_mb = 10000,
+        time='3:00:00'
     script:
         "scripts/syneromics.py"
     
@@ -86,14 +87,14 @@ rule syneromics: # this takes up to 25 min per cpu job
         
 rule single_proteins:
     input:
-        train = "data_tmp/{drug}_data.csv",
-        test = "data_tmp/{drug}_test.csv"
+        train = "/scratch3/wen068/data_tmp/{drug}_data.csv",
+        test = "/scratch3/wen068/data_tmp/{drug}_test.csv"
     output:
-        temp("tmp/{drug}_proteins.csv")
+        temp("/scratch3/wen068/tmp/{drug}_proteins.csv")
     params:
         drug = lambda wc: wc.get("drug")
     resources:
-        mem_mb = 3000,
+        mem_mb = 6000,
         time='4:00:00'
     script:
         "scripts/protein_regression.py"
@@ -101,35 +102,49 @@ rule single_proteins:
 
 
 rule explainability:
+    priority: 
+        -1
     input:
-        train = "data_tmp/{drug}_data.csv",
-        test = "data_tmp/{drug}_test.csv",
-        synergies = "tmp/{drug}_final_results.tsv",
-        proteins = "tmp/{drug}_proteins.csv"
+        train = "/scratch3/wen068/data_tmp/{drug}_data.csv",
+        test = "/scratch3/wen068/data_tmp/{drug}_test.csv",
+        synergies = "/scratch3/wen068/tmp/{drug}_final_results.tsv",
+        proteins = "/scratch3/wen068/tmp/{drug}_proteins.csv"
     output:
-        temp("tmp/{drug}_regression.tsv")
+        temp("/scratch3/wen068/tmp/{drug}_regression.tsv")
     params:
         drug = lambda wc: wc.get("drug"),
         alpha = config["alpha"],
         filter = config["filter"],
         regularized = config["regularized"]
     resources:
-        mem_mb = 24000,  #only for regularization needed
+        mem_mb = config["exp_mem"],  #only for regularization needed
         time='6:00:00'
     shell:
         "lasso/bin/python scripts/explainability.py {input.train} {input.test} {input.synergies} {input.proteins} {output} {wildcards.drug} -a {params.alpha} -f {params.filter} -r {params.regularized}"
 
 
 
-rule combine:
+rule syn_combine:
+    priority: 
+        1
     input:
-        rf_score = expand("tmp/{drug}_performance.tsv", drug=DRUGS),
-        synergies = expand("tmp/{drug}_final_results.tsv", drug=DRUGS),
-        explained = expand("tmp/{drug}_regression.tsv", drug=DRUGS),
-        proteins = expand("tmp/{drug}_proteins.csv", drug=DRUGS)
+        rf_score = expand("/scratch3/wen068/tmp/{drug}_performance.tsv", drug=DRUGS),
+        synergies = expand("/scratch3/wen068/tmp/{drug}_final_results.tsv", drug=DRUGS)
     output:
         synergies = "syn_results/final_results.tsv",
-        rf_scores = "syn_results/tree_performances.tsv",
+        rf_scores = "syn_results/tree_performances.tsv"
+    resources:
+        mem_mb = 5000,
+        time='2:00:00'
+    script:
+        "scripts/combine_syneromics.py"
+
+
+rule exp_combine:
+    input:
+        explained = expand("/scratch3/wen068/tmp/{drug}_regression.tsv", drug=DRUGS),
+        proteins = expand("/scratch3/wen068/tmp/{drug}_proteins.csv", drug=DRUGS)
+    output:
         exp_scores = "exp_results/combined_performances.tsv",
         exp_models = "exp_results/combined_models.tsv",
         exp_proteins = "exp_results/protein_models.tsv"
@@ -137,6 +152,5 @@ rule combine:
         mem_mb = 5000,
         time='2:00:00'
     script:
-        "scripts/combine.py"
-        
+        "scripts/combine_explainability.py"
         
