@@ -43,7 +43,7 @@ for i, d in enumerate(drug_list[:snakemake.params["max_drug"]]):
     xy.columns = [''.join([chr(int(y)+97) if y.isnumeric() else y for y in x.replace('_','').replace('.','')]) for x in xy.columns]
     xy.to_csv(data_file[i], index=False)
     
-    testXY = test.merge(y[y.CHEMBL==d], left_on='Cell_Line', right_on='cell_line_name')
+    testXY = test.merge(test_y[test_y.CHEMBL==d], left_on='Cell_Line', right_on='cell_line_name')
     testXY = testXY.fillna(0).rename(columns={'ln_IC50':'label'}).drop(columns=['cell_line_name','CHEMBL'])
     testXY.columns = [''.join([chr(int(y)+97) if y.isnumeric() else y for y in x.replace('_','').replace('.','')]) for x in testXY.columns]
     testXY.to_csv(test_file[i], index=False)

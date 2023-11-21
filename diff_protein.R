@@ -6,6 +6,7 @@ library(Biobase)
 setwd("C:/Users/wen068/OneDrive - CSIRO/Documents/multiomics-synergies")
 
 
+
 meta <- read.csv('data/pc_drug_response.csv', sep = ',', header=TRUE)
 meta <- meta[,c('tissue', 'cell_line_name')]
 meta <- meta[!duplicated(meta),]
@@ -63,21 +64,28 @@ stats <- topTable(fit, sort.by = "P", n = Inf)
 
 hist(stats[, 'P.Value']) #a lot of 0.
 
-volcanoplot(fit, highlight = 10, names = rownames(fit))
+translate <- read.csv('data/uniprot_protein.csv')
+
+
 
 data <- as.data.frame(stats)
-data$proteins <- rownames(data)
+data$UniProt <- rownames(data) # here I can switch uniprot to prot name
+data <- merge(x = data, y = translate, by = "UniProt")
 
-data$diffexpressed <- "NO"
+
+data$diffexpressed <- "Not significant"
 # if log2Foldchange > 2 and pvalue < 0.05, set as "UP" 
-data$diffexpressed[data$logFC > 1 & data$adj.P.Val < 0.05] <- "UP"
+data$diffexpressed[data$logFC > 1 & data$adj.P.Val < 0.05] <- "Up-regulated"
 # if log2Foldchange < -2 and pvalue < 0.05, set as "DOWN"
-data$diffexpressed[data$logFC < -1 & data$adj.P.Val < 0.05] <- "DOWN"
+data$diffexpressed[data$logFC < -1 & data$adj.P.Val < 0.05] <- "Down-regulated"
 
 data$delabel <- NA
 data <- data[order(data$adj.P.Val, decreasing=FALSE),]
 top20 <- Reduce(rbind, by(data, data$diffexpressed, head, 15))
-data$delabel[data$proteins %in% top20$proteins[top20$diffexpressed != "NO"]] <- data$proteins[data$proteins %in% top20$proteins[top20$diffexpressed != "NO"]]
+data$delabel[data$Protein %in% top20$Protein[top20$diffexpressed != "Not significant"]] <- data$Protein[data$Protein %in% top20$Protein[top20$diffexpressed != "Not significant"]]
+
+
+
 
 library(ggrepel)
 # plot adding
@@ -85,6 +93,7 @@ ggplot(data=data, aes(x=logFC, y=-log10(adj.P.Val), col=diffexpressed, label=del
   geom_point() + 
   theme_minimal() +
   geom_text_repel() +
-  scale_color_manual(values=c("blue", "black", "green")) +
-  geom_vline(xintercept=c(-1, 1), col="red") +
-  geom_hline(yintercept=-log10(0.05), col="red")
+  scale_color_manual(values=c('#1E22AA', "grey",  '#00A9CE')) +#'#007377', '#6D2077''#00B0F0',, '#007377', , '#6D2077'
+  geom_vline(xintercept=c(-1, 1), col='#6D2077') +
+  geom_hline(yintercept=-log10(0.05), col='#6D2077') +
+  labs(col = "Significance")

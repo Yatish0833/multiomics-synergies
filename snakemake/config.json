@@ -1,7 +1,7 @@
 train: train_subset_matrix.csv
 test: test_subset_matrix.csv
 y: pc_drug_response.csv
-test_y: bc_drug_response.csv  # not used in create_data.py at the moment
+test_y: pc_drug_response.csv
 nan: 0
 nTrees: 6000
 mtry: 500
