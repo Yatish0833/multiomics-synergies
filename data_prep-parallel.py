@@ -267,11 +267,19 @@ def test_interactions_high(df, data, max_order=4, repetitions_threshold=2, min_s
     """
     final_results = []
     counts = 0
+    # We'll allow anything through until we have one hit, which we can use to
+    # initialise the dataframe, in case there are no authentic interactions.
+    # We'll use this dummy variable to mark the first interaction found.
+    dummy = True
 
     for m_or in range(2,max_order+1):
         #print('current order',m_or)
-        
-        for v in df[(df.repetitions>=repetitions_threshold) & (df.order==m_or)].variants.tolist():
+        for variant_interaction in df[((df.repetitions>=repetitions_threshold)|dummy) & (df.order==m_or)].itertuples(index=False):
+            if (variant_interaction.repetitions < repetitions_threshold) and not dummy:
+                # We already have our dataframe set up, we don't need low-repetition
+                # interactions anymore
+                continue
+            v = variant_interaction.variants
             #preparing the input
             sp=v.split('+')
             #print(list(data.columns), sp)
@@ -345,17 +353,24 @@ def test_interactions_high(df, data, max_order=4, repetitions_threshold=2, min_s
                 except:
                     #crashed the regularized
                     counts +=1
+                    print("crashed the regularised")
                     continue
 
 
             results['snps'] = v
             results['order'] = len(sp)
             final_results.append(results)
-    try:
-        final_results = pd.concat(final_results)  # this works for any amount of results, but none
-    except:
-        print('no results for this drug')
-        return pd.DataFrame(final_results)  # returns empty data frame
+            if dummy:
+                dummy = False
+                if variant_interaction.repetitions < 2:
+                    # If this is just the dummy interaction, remove it.
+                    # This makes final_results contain a valid empty dataframe, so the
+                    # later call to pd.concat won't crash and in the case of no
+                    # interactions we'll still produce a file with valid headers.
+                    final_results[0] = pd.DataFrame(columns=final_results[0].columns)
+    final_results = pd.concat(final_results)
+    if len(final_results) == 0:
+        print("No results for drug")
     return final_results
 
 
