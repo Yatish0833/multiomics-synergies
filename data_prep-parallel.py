@@ -298,9 +298,14 @@ def test_interactions_high(df, data, max_order=4, repetitions_threshold=2, min_s
                 fs = formula.split(' + ')
                 formula = ' + '.join([a for a in fs if '*' not in a]+[a for a in fs if a.count('*')== m_or-1])
                 all_interactions = [a.replace('*',':') for a in fs if '*' in a]
-                final_results = pd.concat(final_results)
+                # print(final_results)
+                if final_results:
+                    final_results = pd.concat(final_results)
+                else:
+                    # How did we get here? There are no lower order interactions.
+                    print("Higher order interactions present without corresponding lower order interactions.")
+                    continue
                 subset = final_results[final_results.coef_id.apply(lambda a: a in all_interactions)].reset_index(drop=True)
-
                 final_results = [final_results]
                 if len(subset)>0:
                     max_idx = subset['coef'].astype(float).abs().idxmax()
