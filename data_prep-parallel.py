@@ -30,10 +30,8 @@ max_depth = 0 # Maximal tree depth. A value of NULL or 0 (the default) correspon
 min_node= 5 # Minimal node size. default ranger: 5
 
 # File inputs
-x_input = 'data/train_protein_matrix.csv'
-y_input = '/datasets/work/hb-procan/work/data/DrugResponse_PANCANCER_GDSC1_GDSC2_20200602.csv'
-
-test_input = 'data/test_protein_matrix.csv'
+x_input = '/datasets/work/hb-procan/work/roc_ccle/labelled_proteomic_data_CCLE.csv'
+y_input = '/datasets/work/hb-procan/work/roc_ccle/labelled_drug_data_CCLE.csv'
 
 
 # In[ ]:
@@ -124,18 +122,17 @@ path_to_ranger_script = 'ranger_run-parallel.R' # Path to the ranger script
 
 #One row per cell line
 #DIR
-# x = pd.read_excel(x_input, engine='openpyxl').drop(columns=['Project_Identifier'])
-# c = [a.replace(';','.') for a in x.columns]
-# x.columns = c
-# x.columns
-x = pd.read_csv(x_input)
+x = pd.read_csv(x_input, sep=',')#.drop(columns=['Project_Identifier'])
+c = [a.replace(';','.') for a in x.columns]
+x.columns = c
+x.columns
 
-test = pd.read_csv(test_input)
+
 # In[ ]:
 
 
 #DIR
-y = pd.read_csv(y_input)[['drug_id','cell_line_name','ln_IC50', 'max_screening_conc']]
+y = pd.read_csv(y_input, sep=',').rename(columns={'ccl_name': 'cell_line_name', 'master_cpd_id': 'drug_id', 'apparent_ec50_umol': 'ln_IC50'})[['drug_id','cell_line_name','ln_IC50']]
 y.columns
 
 
@@ -277,8 +274,12 @@ def test_interactions_high(df, data, max_order=4, repetitions_threshold=2, min_s
         for v in df[(df.repetitions>=repetitions_threshold) & (df.order==m_or)].variants.tolist():
             #preparing the input
             sp=v.split('+')
-            if len(sp) != len(set(sp)): continue
-            xy = data[sp+["max_screening_conc", 'ln_IC50']]
+            #print(list(data.columns), sp)
+            try:
+              xy = data[sp+['ln_IC50']]
+            except:
+                print("Crashed during data[sp+['ln_IC50']]")
+                continue
             if drop_nans:
                 xy = xy.dropna()
             if len(xy.columns) <= m_or: continue #not enough columns # how would we get that case? deccision over the same protein several times?
@@ -287,7 +288,7 @@ def test_interactions_high(df, data, max_order=4, repetitions_threshold=2, min_s
             xy.columns = [''.join([chr(int(y)+97) if y.isnumeric() else y for y in x.replace('_','').replace('.','')]) for x in xy.columns]
             formula = xy.columns[-1]+' ~ '
             for i in range(1,len(xy.columns)):
-                formula = formula + ' + '.join(['*'.join(o) for o in list(combinations(xy.columns[:-2],i))])
+                formula = formula + ' + '.join(['*'.join(o) for o in list(combinations(xy.columns[:-1],i))])
                 formula = formula + ' + '
             formula = formula.rstrip(' + ')
             
@@ -312,7 +313,7 @@ def test_interactions_high(df, data, max_order=4, repetitions_threshold=2, min_s
 
             # Standard fitting
             try:
-                ols = smf.ols(formula.replace('*',':') + " + maxscreeningconc",data=xy)
+                ols = smf.ols(formula.replace('*',':'),data=xy)
                 # "*" vs ":" #https://stackoverflow.com/questions/33050104/difference-between-the-interaction-and-term-for-formulas-in-statsmodels-ols
             except:
                 print('error in OLS')
@@ -381,15 +382,13 @@ for elm in drugs_list:
     
     if i%10==0 or i<10: print(i,'out of',len(drugs_list), 'drugs in split nr', split_nr)
 
-    xy = x.merge(y[y[column_to_group]==elm], left_on='Cell_Line', right_on='cell_line_name')
-    #Enhancement: Remove peptides that are all zero 
-    test_xy = test.merge(y[y[column_to_group]==elm], left_on='Cell_Line', right_on='cell_line_name')
+    xy = x.merge(y[y[column_to_group]==elm], left_on='Gene', right_on='cell_line_name')
+
     # saving csv for R df
     # file name is generic but we could personalize it
     #DIR
-    xy.drop(columns=['Cell_Line', 'cell_line_name','drug_id']).fillna(0).rename(columns={'ln_IC50':'label'}).to_csv(dir_trees_tmp+f"{split_nr}/data.csv", index=False)
+    xy.drop(columns=['Gene', 'cell_line_name','drug_id']).fillna(0).rename(columns={'ln_IC50':'label'}).to_csv(dir_trees_tmp+f"{split_nr}/data_hos076.csv", index=False)
 
-    test_xy.drop(columns=['Cell_Line', 'cell_line_name','drug_id']).fillna(0).rename(columns={'ln_IC50':'label'}).to_csv(dir_trees_tmp+f"{split_nr}/test_data.csv", index=False)
     #Run the R script to generate the outputs
     #os.system(f"{path_to_R} {path_to_ranger_script}  -w {working_dir} -c {split_nr} -n {n_trees} -t {mtry} -s {min_node} -d {max_depth}")
     print("R output (in case there is an error or something)")
