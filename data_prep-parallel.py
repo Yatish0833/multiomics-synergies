@@ -38,6 +38,8 @@ y_input = '/datasets/work/hb-procan/work/roc_ccle/labelled_drug_data_CCLE.csv'
 
 
 # Importing libraries
+from collections import Counter
+import math
 import pandas as pd
 import numpy as np
 import os
@@ -188,30 +190,43 @@ def from_table_to_json(m):
 
 
 # Algorithm to get the interacting nodes (no testing done yet)
+def get_interactions(full_tree, min_order, max_order):
+    all_interactions = set()
+    # store the stack of subtrees and the combinations that have occurred up to and
+    # excluding the base node of the subtree.
+    subtrees = [(full_tree, set())]
+    while subtrees:
+        tree, branch_interactions = subtrees.pop()
+        if math.isnan(tree['splitval']):
+            # This is an empty tree, discard it.
+            continue
+        split_var_set = frozenset({tree['splitVar']})
+        # The new combinations are all the old combinations with the new splitVar added on
+        # We won't include those that would grow to be over the max order
+        new_branch_interactions = {
+            combination.union(split_var_set)
+            for combination in branch_interactions
+            if len(combination) + 1 <= max_order
+        }
+        # Add a "combination" that is just the splitVar, for future combinations
+        new_branch_interactions.add(split_var_set)
+        # Add these new combinations to all_interactions
+        all_interactions |= new_branch_interactions
+        # Add all the old combinations to our set, because we are about to hand it
+        # down to the left and right subtrees
+        new_branch_interactions |= branch_interactions
+        for side in ('left', 'right'):
+            # Add each subtree to the subtree stack
+            subtrees.append((tree[side], new_branch_interactions))
+    # Turn each combination into a "+" delimited string for future processing
+    # Also ensure that the size of each combination is within the order range
+    return {
+            '+'.join(sorted(interaction))
+            for interaction in all_interactions
+            if min_order <= len(interaction) <= max_order
+    }
 
-def get_interactions(tree, current_list, interactions):
-    if not 'splitVar' in tree.keys():
-        return 0
-    if str(tree['splitVar']) == 'nan': return 0 #ranger adds a fake predicting node at the end
-    
-    # Adding the interaction
-    current_list.append(tree['splitVar'])
-    if len(current_list) >= 2:
-        for i in range(2,len(current_list)+1):
-              if len(current_list[-i-1:]) == len(set(current_list[-i-1:])) and "maxscreeningconc" not in current_list:
-                aux = '+'.join(sorted(current_list[-i:]))
-                if aux in interactions.keys():
-                    interactions[aux] +=1
-                else:
-                    interactions[aux] = 1
-                    
-    if 'left' in tree.keys():
-        get_interactions(tree['left'], current_list, interactions)
-    if 'right' in tree.keys():
-        get_interactions(tree['right'], current_list, interactions)
-        
-    _ = current_list.pop()
-    
+
 
 
 # In[ ]:
@@ -415,17 +430,18 @@ for elm in drugs_list:
     #os.system(f"{path_to_R} {path_to_ranger_script}  -w {working_dir} -c {split_nr} -n {n_trees} -t {mtry} -s {min_node} -d {max_depth}")
     print("R output (in case there is an error or something)")
     #os.popen(f"{path_to_R} {path_to_ranger_script}  -w {working_dir} -c {split_nr} -n {n_trees} -t {mtry} -s {min_node} -d {max_depth}").read()    
-    print(os.popen(f"{path_to_R} {path_to_ranger_script}  -w {working_dir} -c {split_nr} -n {n_trees} -t {mtry} -s {min_node} -d {max_depth}").read())
+    # print(os.popen(f"{path_to_R} {path_to_ranger_script}  -w {working_dir} -c {split_nr} -n {n_trees} -t {mtry} -s {min_node} -d {max_depth}").read())
     
     #load the R outputs (the trees, one file each), and convert it to VS look-alike and get interactions
-    interactions = {}
+    interactions = Counter()
   
     aggregated_trees_df = pd.read_csv(os.path.join(dir_trees_tmp+str(split_nr),'aggregated_trees.csv'))
     aggregated_trees_list = aggregated_trees_df.tree.unique()
+
     for tree_nr in aggregated_trees_list:
         tree_df = aggregated_trees_df[aggregated_trees_df.tree==tree_nr]
         tree_json = from_table_to_json(tree_df)        
-        get_interactions(tree_json,[],interactions)
+        interactions.update(get_interactions(tree_json, 2, max_order))
     
     # Creating a df out of the interactions
     df = pd.DataFrame({'variants':interactions.keys(),'repetitions':interactions.values()})
