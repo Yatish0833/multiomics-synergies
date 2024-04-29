@@ -308,6 +308,7 @@ def test_interactions_high(df, data, max_order=4, repetitions_threshold=2, min_s
                     formula = formula +' + '+coef_id.replace(':','*')
                 else:
                     #pass
+                    print("len(subset)=0")
                     continue # bc i dont think it is a valid tree form (interaction-wise)
                     #There is no sub epistasis (P>Q>O>P, tree 503, first compound)
 
@@ -320,6 +321,7 @@ def test_interactions_high(df, data, max_order=4, repetitions_threshold=2, min_s
                 #print('coef_id',coef_id)
                 print('formula OLS',type(formula),formula)
                 #return pd.concat(final_results)
+                print("Crashed during smf.ols(...)")
                 continue
             ols.raise_on_perfect_prediction = False #preventing the perfect separation error
             results = ols.fit(disp=False, maxiter=1000) #mehtod prevents singular matrix
