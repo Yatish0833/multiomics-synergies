@@ -424,7 +424,7 @@ for elm in drugs_list:
     # saving csv for R df
     # file name is generic but we could personalize it
     #DIR
-    xy.drop(columns=['Gene', 'cell_line_name','drug_id']).fillna(0).rename(columns={'ln_IC50':'label'}).to_csv(dir_trees_tmp+f"{split_nr}/data_hos076.csv", index=False)
+    xy.drop(columns=['Gene', 'cell_line_name','drug_id']).fillna(0).rename(columns={'ln_IC50':'label'}).to_csv(dir_trees_tmp+f"{split_nr}/data.csv", index=False)
 
     #Run the R script to generate the outputs
     #os.system(f"{path_to_R} {path_to_ranger_script}  -w {working_dir} -c {split_nr} -n {n_trees} -t {mtry} -s {min_node} -d {max_depth}")
