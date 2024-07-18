@@ -430,7 +430,7 @@ for elm in drugs_list:
     #os.system(f"{path_to_R} {path_to_ranger_script}  -w {working_dir} -c {split_nr} -n {n_trees} -t {mtry} -s {min_node} -d {max_depth}")
     print("R output (in case there is an error or something)")
     #os.popen(f"{path_to_R} {path_to_ranger_script}  -w {working_dir} -c {split_nr} -n {n_trees} -t {mtry} -s {min_node} -d {max_depth}").read()    
-    # print(os.popen(f"{path_to_R} {path_to_ranger_script}  -w {working_dir} -c {split_nr} -n {n_trees} -t {mtry} -s {min_node} -d {max_depth}").read())
+    print(os.popen(f"{path_to_R} {path_to_ranger_script}  -w {working_dir} -c {split_nr} -n {n_trees} -t {mtry} -s {min_node} -d {max_depth}").read())
     
     #load the R outputs (the trees, one file each), and convert it to VS look-alike and get interactions
     interactions = Counter()
