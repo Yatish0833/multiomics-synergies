@@ -41,7 +41,7 @@ args = parse_args(opt_parser)
 setwd(args$workDir)
 set.seed(13)
 X_df <- read.csv(paste0("tmp",args$split,"/data.csv"))
-test_df <- read.csv(paste0("tmp",args$split,"/test_data.csv"))
+# test_df <- read.csv(paste0("tmp",args$split,"/test_data.csv"))
 
 
 # Run ranger
@@ -65,16 +65,17 @@ write.csv(final_df,paste0("tmp",args$split,"/aggregated_trees.csv"), row.names =
 # OOB = ra$r.squared (R squared OOB by ranger definition)
 #ra
 
-test_y <- predict(ra, test_df)
+# test_y <- predict(ra, test_df)
 
 
 # print("create data frame")
 df <- data.frame (train_MSE  = c(ra$prediction.error),
                   train_OOB = c(ra$r.squared),
-                  train_pearsonR = cor(ra$predictions, X_df$label, method='pearson'),
-                  MSE = mean((test_df$label - test_y$predictions)^2),
-                  pearsonR = cor(test_y$predictions, test_df$label, method = 'pearson')
+                  train_pearsonR = cor(ra$predictions, X_df$label, method='pearson')
 )
+#                   MSE = mean((test_df$label - test_y$predictions)^2),
+#                   pearsonR = cor(test_y$predictions, test_df$label, method = 'pearson')
+# )
 # print("data frame created")
 write.table(df, file=paste0("tmp",args$split,"/performance.tsv"), quote=FALSE, sep='\t')
 
