@@ -18,6 +18,8 @@
 
 #Best overall parameters: min_repetitions = 2, n_trees = 6000, mtry = 500, max_depth = 10, min_node= 15
 
+VS_JSON = "RF.json"
+VS_OUT_CSV = "vs_interactions.csv"
 min_repetitions = 2 #Number of repetitions an interaction appears in the trees
 max_order = 4 
 working_dir = 'rocstool/tmp/' #make sure it is empty
@@ -50,6 +52,49 @@ from itertools import combinations
 
 
 # In[ ]:
+
+# Algorithm to get the interacting nodes (no testing done yet)
+
+def get_interactions(tree, current_list, interactions):
+    if not 'splitVar' in tree.keys():
+        return 0
+    if str(tree['splitVar']) == 'nan': return 0 #ranger adds a fake predicting node at the end
+
+    # Adding the interaction
+    current_list.append(tree['splitVar'])
+    if len(current_list) >= 2:
+        for i in range(2,len(current_list)+1):
+              if len(current_list[-i-1:]) == len(set(current_list[-i-1:])) and "maxscreeningconc" not in current_list:
+                aux = '+'.join(sorted(current_list[-i:]))
+                if aux in interactions.keys():
+                    interactions[aux] +=1
+                else:
+                    interactions[aux] = 1
+
+    if 'left' in tree.keys():
+        get_interactions(tree['left'], current_list, interactions)
+    if 'right' in tree.keys():
+        get_interactions(tree['right'], current_list, interactions)
+
+    _ = current_list.pop()
+
+
+def vs_json_to_interactions_csv(json_file, out_file):
+    interactions = {}
+    import json
+    with open(json_file) as json_in_file:
+        vs_dict = json.load(json_in_file)
+    for tree_dict in vs_dict['trees']:
+        get_interactions(tree_dict['rootNode'], [], interactions)
+    df = pd.DataFrame({'variants':interactions.keys(),'repetitions':interactions.values()})
+    df = df[df['repetitions'] > 1]
+    df['order'] = df.variants.apply(lambda x: x.count('+')+1)
+    df.to_csv(out_file, index=False)
+
+
+if VS_JSON:
+    vs_json_to_interactions_csv(VS_JSON, VS_OUT_CSV)
+    exit(0)
 
 
 # Defining the number of splits in the data
@@ -186,32 +231,6 @@ def from_table_to_json(m):
 
 # In[ ]:
 
-
-# Algorithm to get the interacting nodes (no testing done yet)
-
-def get_interactions(tree, current_list, interactions):
-    if not 'splitVar' in tree.keys():
-        return 0
-    if str(tree['splitVar']) == 'nan': return 0 #ranger adds a fake predicting node at the end
-    
-    # Adding the interaction
-    current_list.append(tree['splitVar'])
-    if len(current_list) >= 2:
-        for i in range(2,len(current_list)+1):
-              if len(current_list[-i-1:]) == len(set(current_list[-i-1:])) and "maxscreeningconc" not in current_list:
-                aux = '+'.join(sorted(current_list[-i:]))
-                if aux in interactions.keys():
-                    interactions[aux] +=1
-                else:
-                    interactions[aux] = 1
-                    
-    if 'left' in tree.keys():
-        get_interactions(tree['left'], current_list, interactions)
-    if 'right' in tree.keys():
-        get_interactions(tree['right'], current_list, interactions)
-        
-    _ = current_list.pop()
-    
 
 
 # In[ ]:
