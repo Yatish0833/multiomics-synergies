@@ -2,7 +2,8 @@
 
 _synerOmics_ is a tool that aims to identify interactions between continuous features that may have a greater-than-additive effect on a continuous phenotype. We have demonstrated its use case on the ProCan-DepMapSanger dataset (Goncalves _et al.,_ 2022), and a validation dataset (Sun _et al.,_ 2023), however it can be applied to any continous ‘omic data.
 
-![image](https://github.com/user-attachments/assets/6d43ab5d-e7bc-41dd-b341-fdde35e8f587)
+![synerOmics_readme_figure](https://github.com/user-attachments/assets/3fbdf255-6bf4-414f-b003-7ce82fe435b3)
+
 
 
 _synerOmics step 1_ utilises the R package _ranger_ to build regression trees and generates a count table for how frequently two features occur as parent-child nodes. _synerOmics step 2_ then takes a user-supplied cutoff of occurrences and performs OLS regression through python’s _statsmodels_, identifying features that show “synergistic” effects on phenotypes. 
